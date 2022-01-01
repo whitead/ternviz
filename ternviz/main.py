@@ -21,11 +21,25 @@ def main(smiles, names, vmd, ffmpeg):
     width = 800 // len(smiles)
     for i, (n, s) in enumerate(zip(names, smiles)):
         print('Processing SMILES', i+1, 'of', len(smiles))
-        p = gen_coords(s)
+        status = ''
+        try:
+            p = gen_coords(s)
+        except:
+            status = 'Failed to generate coordinates'
+            break
         print('Rendering', s)
-        render(p.name, width, vmd=vmd)
+        try:
+            render(p.name, width, vmd=vmd)
+        except:
+            status = 'Failed to render'
+            break
         print('Making Movie for', s)
-        m = movie(n, ffmpeg=ffmpeg)
+        try:
+            m = movie(n, ffmpeg=ffmpeg)
+        except:
+            status = 'Failed to make movie'
+            break
         print(m)
         p.close()
         os.unlink(p.name)
+    return m, status

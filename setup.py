@@ -18,11 +18,14 @@ setup(name='ternviz',
       install_requires=[
           'click',
           'rdkit-pypi',
+          'tweepy',
+          'python-dotenv',
           'importlib_resources'],
       zip_safe=True,
       entry_points='''
         [console_scripts]
         ternviz=ternviz.main:main
+        ternviz-bot=ternviz.bot:bot
             ''',
       package_data={'ternviz': ['vmd/*.vmd']},
       long_description=long_description,

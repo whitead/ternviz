@@ -5,40 +5,50 @@ import tempfile
 import os
 
 
-def vmd_script(width):
+def vmd_script(width, id, high_quality=False):
     from importlib_resources import files
     import ternviz.vmd
-    fp = files(ternviz.vmd).joinpath(
-        'render.vmd')
+    if high_quality:
+        fp = files(ternviz.vmd).joinpath(
+            'render.vmd')
+    else:
+        fp = files(ternviz.vmd).joinpath(
+            'render-lq.vmd')
     result = []
     with fp.open('r') as f:
         for line in f.readlines():
-            result.append(line.replace('WIDTH', str(width)))
+            result.append(line.replace(
+                'WIDTH', str(width)).replace('__ID__', id))
     return result
 
 
-def gen_coords(s):
+def gen_coords(s, name=None):
     m = Chem.MolFromSmiles(s)
     m = Chem.AddHs(m)
     AllChem.EmbedMolecule(m, randomSeed=0xf00d)
     AllChem.MMFFOptimizeMolecule(m)
 
-    tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.pdb')
+    if name is None:
+        tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.pdb')
+    else:
+        tmp = open(os.path.join('/var/tmp', name + '.pdb'), 'w')
     Chem.MolToPDBFile(m, tmp.name)
     return tmp
 
 
-def render(pdb_path, width, vmd='vmd'):
+def render(pdb_path, width, id='movie', vmd='vmd', high_quality=True):
     with tempfile.NamedTemporaryFile() as script:
         with open(script.name, 'w') as f:
-            f.writelines(vmd_script(width))
+            f.writelines(vmd_script(width, id, high_quality))
         os.system(
             f'{vmd} -dispdev text -e {script.name} {pdb_path} > /dev/null')
 
 
 def movie(name, ffmpeg='ffmpeg'):
-    os.system(f'{ffmpeg} -framerate 60 -f image2 -i /var/tmp/mov.%04d.bmp -c:v h264 -crf 9 -c:v libx264 -movflags +faststart -vf format=yuv420p {name}.mp4')
-    return f'{name}.mp4'
+    out = os.path.join('/var/tmp', f'{name}.mp4')
+    os.system(
+        f'{ffmpeg} -framerate 60 -f image2 -i /var/tmp/{name}.%04d.bmp -c:v h264 -crf 9 -c:v libx264 -movflags +faststart -filter_complex "[0:v]tpad=stop_mode=clone:stop_duration=2[a];[a]format=yuv420p[out]" -map "[out]" {out} > /dev/null')
+    return out
 
 
 def multiplex(videos, names):
