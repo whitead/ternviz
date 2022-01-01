@@ -1,6 +1,6 @@
 import click
 import os
-from .lib import gen_coords, movie, render
+from .lib import gen_coords, movie, render, check_smiles
 
 
 @click.command()
@@ -19,9 +19,14 @@ def main(smiles, names, vmd, ffmpeg):
         names = names.split(',')
     assert len(names) == len(smiles)
     width = 800 // len(smiles)
+    m = None
     for i, (n, s) in enumerate(zip(names, smiles)):
         print('Processing SMILES', i+1, 'of', len(smiles))
         status = ''
+        sm = check_smiles(s)
+        if sm:
+            status += sm + '\n'
+            break
         try:
             p = gen_coords(s)
         except:

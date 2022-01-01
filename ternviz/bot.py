@@ -1,18 +1,20 @@
 import tweepy
 import click
 from dotenv import load_dotenv
+from rdkit import Chem
 import os
 import ternviz
 import multiprocessing
 import time
+from retrying import retry
 
 TIMEOUT_COORDS = 10
 TIMEOUT_RENDER = 1000
 
 
 def smiles_error(api, id, s):
-    api.update_status(status=f"Failed to generate coordinates for your SMILES 😢\n Your SMILES were '{s}'",
-                      in_reply_to_status_id=id, auto_populate_reply_metadata=True)
+    return api.update_status(status=f"Failed to generate coordinates for your SMILES 😢\n Your SMILES were '{s}'",
+                             in_reply_to_status_id=id, auto_populate_reply_metadata=True)
 
 
 def render_error(api, id):
@@ -21,7 +23,16 @@ def render_error(api, id):
 
 
 def make_pdb(api, id, text):
-    smiles = text.split('@ternviz')[-1].strip()
+    smiles = text.split('render')[-1].strip()
+    print('Tweet text', text)
+    smiles_status = ternviz.check_smiles(smiles)
+    if smiles_status:
+        se = smiles_error(api, id, smiles)
+        api.update_status(status=smiles_status,
+                          in_reply_to_status_id=se.id, auto_populate_reply_metadata=True)
+        return None
+
+    print('Determined SMILES are', smiles)
     p = multiprocessing.Process(
         target=ternviz.gen_coords, args=(smiles, str(id)))
     p.start()
@@ -60,7 +71,8 @@ def render(api, pdb_file, id, width=800):
 
 
 @click.command()
-def bot():
+@click.argument('user', type=str, default='ternviz')
+def bot(user):
     load_dotenv('.secrets')
     consumer_key = os.environ.get('CONSUMER_KEY')
     consumer_secret = os.environ.get('CONSUMER_SECRET')
@@ -70,12 +82,19 @@ def bot():
     auth.set_access_token(access_token, access_token_secret)
 
     api = tweepy.API(auth)
+    my_user_id = api.get_user(screen_name='ternviz').id
 
     # Subclass Stream to print IDs of Tweets received
     class IDPrinter(tweepy.Stream):
 
         def on_status(self, status):
             print('Processing', status.id)
+            if 'render' not in status.text:
+                print('Determined to be reply with no render in body')
+                return
+            if status.user.id == my_user_id:
+                print('Determined to be self-reply')
+                return
             start = time.time_ns()
             pdb_file = make_pdb(api, status.id, status.text)
             if not pdb_file:
@@ -100,4 +119,8 @@ def bot():
 
     # Filter realtime Tweets by keyword
     print('Set-up done, starting bot')
-    printer.filter(track=["@ternviz"],  threaded=True)
+
+    @retry
+    def start():
+        printer.filter(track=["@ternviz"],  threaded=True)
+    start()

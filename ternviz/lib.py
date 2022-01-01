@@ -3,6 +3,21 @@ from rdkit import Chem
 from rdkit.Chem import AllChem
 import tempfile
 import os
+import sys
+from io import StringIO
+Chem.WrapLogs()
+
+
+def check_smiles(s):
+    sio = sys.stderr = StringIO()
+    Chem.MolFromSmiles(s)
+    s = sio.getvalue()
+    result = []
+    if len(s) > 0:
+        for si in s.split('\n'):
+            result.append(si.split('SMILES Parse Error:')[-1])
+    sys.stderr = sys.__stderr__
+    return '\n'.join(result)
 
 
 def vmd_script(width, id, high_quality=False):
