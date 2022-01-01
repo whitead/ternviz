@@ -1,0 +1,17 @@
+mol modstyle 0 0 Licorice 0.300000 12.000000 12.000000
+mol modmaterial 0 0 AOChalky
+color Name C gray
+axes location Off
+display shadows on
+display ambientocclusion on
+display resetview
+display resize WIDTH 600
+for {set i 0} {$i < 360} {incr i 1} {
+	# force the update
+	display update
+	# and take the picture
+	render TachyonInternal [format "%s/mov.%04d.bmp" "/var/tmp" $i]
+	#rotate
+	rotate y by 1.0
+}
+exit
