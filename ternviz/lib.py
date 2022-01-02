@@ -29,7 +29,7 @@ def get_name(s):
         reply = requests.post(url, json={"graph": s})
         data = reply.json()
         if data["reference"] == "wikidata":
-            return data["name"]
+            return data["name"].replace(" ", "-")
     except:
         pass
     return Chem.rdMolDescriptors.CalcMolFormula(Chem.MolFromSmiles(s))
