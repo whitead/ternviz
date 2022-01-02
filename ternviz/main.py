@@ -25,28 +25,16 @@ def main(smiles, names, vmd, ffmpeg):
         status = ""
         sm = check_smiles(s)
         if sm:
-            status += sm + "\n"
-            break
-        try:
-            p = gen_coords(s)
-        except:
-            status = "Failed to generate coordinates"
-            break
+            raise ValueError(sm)
+        p = gen_coords(s)
         print("Rendering", s)
-        try:
-            render(p.name, width, id=n, vmd=vmd)
-        except:
-            status = "Failed to render"
-            break
+        render(p.name, width, id=n, vmd=vmd)
         print("Making Movie for", s)
-        try:
-            m = movie(n, ffmpeg=ffmpeg, short_name=n)
-        except:
-            status = "Failed to make movie"
-            break
+        m = movie(n, ffmpeg=ffmpeg, short_name=n)
         movies.append(m)
         p.close()
         os.unlink(p.name)
     if len(movies) == 2:
         multiplex(movies, "out")
+    print(status)
     return status
