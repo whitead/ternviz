@@ -27,6 +27,8 @@ def main(smiles, names, vmd, ffmpeg):
         if sm:
             raise ValueError(sm)
         p = gen_coords(s)
+        if not p:
+            raise ValueError("Failed to generate coordinates")
         print("Rendering", s)
         render(p.name, width, id=n, vmd=vmd)
         print("Making Movie for", s)
@@ -35,6 +37,6 @@ def main(smiles, names, vmd, ffmpeg):
         p.close()
         os.unlink(p.name)
     if len(movies) == 2:
-        multiplex(movies, "out")
-    print(status)
-    return status
+        return multiplex(movies, "out")
+
+    return movies[0]
