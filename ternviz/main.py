@@ -1,6 +1,6 @@
 import click
 import os
-from .lib import gen_coords, movie, render, check_smiles
+from .lib import gen_coords, movie, render, check_smiles, get_name, multiplex
 
 
 @click.command()
@@ -14,12 +14,12 @@ def main(smiles, names, vmd, ffmpeg):
     if type(smiles) == str:
         smiles = [smiles]
     if names is None:
-        names = [f'Molecule {i+1}' for i in range(len(smiles))]
+        names = [get_name(s) for s in smiles]
     if type(names) == str:
         names = names.split(',')
     assert len(names) == len(smiles)
     width = 800 // len(smiles)
-    m = None
+    movies = []
     for i, (n, s) in enumerate(zip(names, smiles)):
         print('Processing SMILES', i+1, 'of', len(smiles))
         status = ''
@@ -34,17 +34,19 @@ def main(smiles, names, vmd, ffmpeg):
             break
         print('Rendering', s)
         try:
-            render(p.name, width, vmd=vmd)
+            render(p.name, width, id=n, vmd=vmd)
         except:
             status = 'Failed to render'
             break
         print('Making Movie for', s)
         try:
-            m = movie(n, ffmpeg=ffmpeg)
+            m = movie(n, ffmpeg=ffmpeg, short_name=n)
         except:
             status = 'Failed to make movie'
             break
-        print(m)
+        movies.append(m)
         p.close()
         os.unlink(p.name)
-    return m, status
+    if len(movies) == 2:
+        multiplex(movies, 'out')
+    return status

@@ -5,6 +5,7 @@ import tempfile
 import os
 import sys
 from io import StringIO
+import requests
 Chem.WrapLogs()
 
 
@@ -18,6 +19,18 @@ def check_smiles(s):
             result.append(si.split('SMILES Parse Error:')[-1])
     sys.stderr = sys.__stderr__
     return '\n'.join(result)
+
+
+def get_name(s):
+    try:
+        url = 'https://api.leruli.com/v21_4/graph-to-name'
+        reply = requests.post(url, json={'graph': s})
+        data = reply.json()
+        if data['reference'] == 'wikidata':
+            return data['name']
+    except:
+        pass
+    return Chem.rdMolDescriptors.CalcMolFormula(Chem.MolFromSmiles(s))
 
 
 def vmd_script(width, id, high_quality=False):
@@ -41,7 +54,10 @@ def gen_coords(s, name=None):
     m = Chem.MolFromSmiles(s)
     m = Chem.AddHs(m)
     AllChem.EmbedMolecule(m, randomSeed=0xf00d)
-    AllChem.MMFFOptimizeMolecule(m)
+    try:
+        AllChem.MMFFOptimizeMolecule(m)
+    except:
+        pass
 
     if name is None:
         tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.pdb')
@@ -59,13 +75,23 @@ def render(pdb_path, width, id='movie', vmd='vmd', high_quality=True):
             f'{vmd} -dispdev text -e {script.name} {pdb_path} > /dev/null')
 
 
-def movie(name, ffmpeg='ffmpeg'):
+def movie(name, short_name='molecule', ffmpeg='ffmpeg'):
     out = os.path.join('/var/tmp', f'{name}.mp4')
+    font_path = os.path.join(os.getenv('CONDA_PREFIX'),
+                             'fonts', 'open-fonts', 'IBMPlexMono-Light.ttf')
     os.system(
-        f'{ffmpeg} -framerate 60 -f image2 -i /var/tmp/{name}.%04d.bmp -c:v h264 -crf 9 -c:v libx264 -movflags +faststart -filter_complex "[0:v]tpad=stop_mode=clone:stop_duration=2[a];[a]format=yuv420p[out]" -map "[out]" {out} > /dev/null')
+        f'{ffmpeg} -framerate 60 -f image2 -i /var/tmp/{name}.%04d.bmp -c:v h264 -crf 9 '
+        '-c:v libx264 -movflags +faststart -filter_complex '
+        '"[0:v]tpad=stop_mode=clone:stop_duration=2[b];'
+        f'[b]drawtext=text=\'{short_name}\':fontsize=36:x=(w-text_w)/2:y=(2*text_h):fontcolor=white:fontfile={font_path}[c];'
+        '[c]format=yuv420p[out]" '
+        f'-map "[out]" {out} > /dev/null')
     return out
 
 
-def multiplex(videos, names):
-    assert len(videos) == len(names)
-    # $1 - i $2 - i $3 - filter_complex "[0]drawtext=text='${N1}':fontsize=36:x=(w-text_w)/2:y=(h-2*text_h):fontcolor=white[v0];[1]drawtext=text='${N2}':fontsize=36:x=(w-text_w)/2:y=(h-2*text_h):fontcolor=white[v1];[v0][v1]hstack=inputs=2[v]" - map "[v]" multi.mp4
+def multiplex(videos, name, ffmpeg='ffmpeg'):
+    assert len(videos) == 2
+    out = os.path.join('/var/tmp', f'{name}.mp4')
+    os.system(
+        f'{ffmpeg} -i {videos[0]} -i {videos[1]} -filter_complex hstack=inputs=2 {out} > /dev/null')
+    return out

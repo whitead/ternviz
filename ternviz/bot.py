@@ -6,7 +6,6 @@ import os
 import ternviz
 import multiprocessing
 import time
-from retrying import retry
 
 TIMEOUT_COORDS = 10
 TIMEOUT_RENDER = 1000
@@ -22,15 +21,22 @@ def render_error(api, id):
                       in_reply_to_status_id=id, auto_populate_reply_metadata=True)
 
 
-def make_pdb(api, id, text):
-    smiles = text.split('render')[-1].strip()
-    print('Tweet text', text)
+def full_text(api, status_id):
+    status = api.get_status(status_id, tweet_mode="extended")
+    try:
+        text = status.retweeted_status.full_text
+    except AttributeError:  # Not a Retweet
+        text = status.full_text
+    return text
+
+
+def make_pdb(api, id, smiles):
     smiles_status = ternviz.check_smiles(smiles)
     if smiles_status:
         se = smiles_error(api, id, smiles)
-        api.update_status(status=smiles_status,
+        api.update_status(status=smiles_status[:179],
                           in_reply_to_status_id=se.id, auto_populate_reply_metadata=True)
-        return None
+        return None, None
 
     print('Determined SMILES are', smiles)
     p = multiprocessing.Process(
@@ -41,15 +47,15 @@ def make_pdb(api, id, text):
         p.terminate()
         p.join()
         smiles_error(api, id, smiles)
-        return None
+        return None, None
     out = os.path.join('/var/tmp', f'{id}.pdb')
     if not os.path.exists(out):
         smiles_error(api, id, smiles)
-        return None
-    return out
+        return None, None
+    return out, ternviz.get_name(smiles)
 
 
-def render(api, pdb_file, id, width=800):
+def do_render(api, pdb_file, id, short_name, width):
     p = multiprocessing.Process(
         target=ternviz.render, args=(pdb_file, width, str(id)))
     p.start()
@@ -60,7 +66,7 @@ def render(api, pdb_file, id, width=800):
         render_error(api, id)
         return None
     p2 = multiprocessing.Process(
-        target=ternviz.movie, args=(str(id),))
+        target=ternviz.movie, args=(str(id), short_name))
     p2.start()
     p2.join(TIMEOUT_RENDER)
     out = os.path.join('/var/tmp', f'{id}.mp4')
@@ -68,6 +74,22 @@ def render(api, pdb_file, id, width=800):
         render_error(api, id)
         return None
     return out
+
+
+def render(api, status, smiles, width=800):
+    pdb_file, short_name = make_pdb(
+        api, status.id, smiles)
+    if not pdb_file:
+        return None, None
+    try:
+        init_status = api.update_status(status=f"These SMILES look great 😁 Working on rendering {short_name} 🎨... This can take a few minutes. I will delete this message when I'm done.",
+                                        in_reply_to_status_id=status.id, auto_populate_reply_metadata=True)
+    except tweepy.os.error.HTTPException as e:
+        return None, None
+    movie = do_render(api, pdb_file, str(status.id) +
+                      short_name, short_name, width=width)
+    api.destroy_status(init_status.id)
+    return movie, short_name
 
 
 @click.command()
@@ -89,27 +111,38 @@ def bot(user):
 
         def on_status(self, status):
             print('Processing', status.id)
-            if 'render' not in status.text:
+            call_type = ''
+            if 'render' in status.text:
+                call_type = 'render'
+            elif 'compare' in status.text:
+                call_type = 'compare'
+            if not call_type:
                 print('Determined to be reply with no render in body')
                 return
             if status.user.id == my_user_id:
                 print('Determined to be self-reply')
                 return
             start = time.time_ns()
-            pdb_file = make_pdb(api, status.id, status.text)
-            if not pdb_file:
-                return
-            init_status = api.update_status(status="These SMILES look great 😁 Working on rendering 🎨... This can take a few minutes. I will delete this message when I'm done.",
-                                            in_reply_to_status_id=status.id, auto_populate_reply_metadata=True)
-            movie = render(api, pdb_file, status.id)
-            api.destroy_status(init_status.id)
+            if call_type == 'render':
+                smiles = full_text(api, status.id).split('render')[-1].strip()
+                movie, short_name = render(api, status, smiles)
+            elif call_type == 'compare':
+                smiles = list(full_text(api, status.id).split(
+                    'compare')[-1].split())
+                m1, s1 = render(api, status, smiles[0], width=800 // 2)
+                m2, s2 = render(api, status, smiles[1], width=800 // 2)
+                movie = ternviz.multiplex([m1, m2], status.id)
+                short_name = s1 + ' vs. ' + s2
             if not movie:
                 return
             print('Completed Rendering')
             media = api.media_upload(movie)
             duration = (time.time_ns() - start) / (10**9)
-            init_status = api.update_status(status=f"Rendered in {duration:.2f} seconds", media_ids=[media.media_id],
-                                            in_reply_to_status_id=status.id, auto_populate_reply_metadata=True)
+            try:
+                api.update_status(status=f'Rendered {short_name} in {duration:.2f} seconds.', media_ids=[media.media_id],
+                                  in_reply_to_status_id=status.id, auto_populate_reply_metadata=True)
+            except tweepy.os.error.HTTPException as e:
+                return
 
     # Initialize instance of the subclass
     printer = IDPrinter(
@@ -120,7 +153,11 @@ def bot(user):
     # Filter realtime Tweets by keyword
     print('Set-up done, starting bot')
 
-    @retry
-    def start():
-        printer.filter(track=["@ternviz"],  threaded=True)
-    start()
+    while True:
+        try:
+            p = printer.filter(track=['@ternviz'],  threaded=True)
+            p.join()
+        except:
+            time.sleep(1.0)
+            print('Died, restarting')
+            continue

@@ -20,7 +20,7 @@ setup(name='ternviz',
           'rdkit-pypi',
           'tweepy',
           'python-dotenv',
-          'retrying',
+          'requests',
           'importlib_resources'],
       zip_safe=True,
       entry_points='''

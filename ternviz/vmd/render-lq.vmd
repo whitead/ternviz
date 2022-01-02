@@ -6,12 +6,12 @@ display shadows off
 display ambientocclusion off
 display resetview
 display resize WIDTH 600
-for {set i 0} {$i < 90} {incr i 1} {
+for {set i 0} {$i < 360} {incr i 1} {
 	# force the update
 	display update
 	# and take the picture
 	render TachyonInternal [format "%s/__ID__.%04d.bmp" "/var/tmp" $i]
 	#rotate
-	rotate y by 4.0
+	rotate y by 1.0
 }
 exit
