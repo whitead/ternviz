@@ -8,7 +8,8 @@ from .lib import gen_coords, movie, render, check_smiles, get_name, multiplex
 @click.option("--names", default=None, help="comma separated names")
 @click.option("--vmd", default="vmd")
 @click.option("--ffmpeg", default="ffmpeg")
-def main(smiles, names, vmd, ffmpeg):
+@click.option("--low-quality", is_flag=True, default=False)
+def main(smiles, names, vmd, ffmpeg, low_quality):
     if len(smiles) == 0:
         return
     if type(smiles) == str:
@@ -30,7 +31,7 @@ def main(smiles, names, vmd, ffmpeg):
         if not p:
             raise ValueError("Failed to generate coordinates")
         print("Rendering", s)
-        render(p.name, width, id=n, vmd=vmd)
+        render(p.name, width, id=n, vmd=vmd, high_quality=not low_quality)
         print("Making Movie for", s)
         m = movie(n, ffmpeg=ffmpeg, short_name=n)
         movies.append(m)
