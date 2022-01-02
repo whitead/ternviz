@@ -6,6 +6,7 @@ import os
 import sys
 from io import StringIO
 import requests
+import subprocess
 
 Chem.WrapLogs()
 
@@ -76,7 +77,9 @@ def render(pdb_path, width, id="movie", vmd="vmd", high_quality=True):
     with tempfile.NamedTemporaryFile() as script:
         with open(script.name, "w") as f:
             f.writelines(vmd_script(width, id, high_quality))
-        os.system(f"{vmd} -dispdev text -e {script.name} {pdb_path} > /dev/null")
+        subprocess.run(
+            f"{vmd} -dispdev text -e {script.name} {pdb_path} > /dev/null", shell=True
+        )
 
 
 def movie(name, short_name="molecule", ffmpeg="ffmpeg"):
@@ -91,12 +94,13 @@ def movie(name, short_name="molecule", ffmpeg="ffmpeg"):
     #     f'[b]drawtext=text=\'{short_name}\':fontsize=36:x=(w-text_w)/2:y=(2*text_h):fontcolor=white:fontfile={font_path}[c];'
     #     '[c]format=yuv420p[out]" '
     #     f'-map "[out]" {out} > /dev/null')
-    os.system(
+    subprocess.run(
         f"{ffmpeg} -framerate 60 -f image2 -i /var/tmp/{name}.%04d.bmp -c:v h264 -crf 9 "
         "-c:v libx264 -movflags +faststart -filter_complex "
         f"\"[0:v]drawtext=text='{short_name}':fontsize=36:x=(w-text_w)/2:y=(2*text_h):fontcolor=white:fontfile={font_path}[c];"
         '[c]format=yuv420p[out]" '
-        f'-map "[out]" {out} > /dev/null'
+        f'-map "[out]" {out} > /dev/null',
+        shell=True,
     )
     return out
 
