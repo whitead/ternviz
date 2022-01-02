@@ -78,7 +78,8 @@ def render(pdb_path, width, id="movie", vmd="vmd", high_quality=True):
         with open(script.name, "w") as f:
             f.writelines(vmd_script(width, id, high_quality))
         subprocess.run(
-            f"{vmd} -dispdev text -e {script.name} {pdb_path} > /dev/null", shell=True
+            f"{vmd} -dispdev text -eofexit {pdb_path} < {script.name} > /dev/null",
+            shell=True,
         )
 
 
