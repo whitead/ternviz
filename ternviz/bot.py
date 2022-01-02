@@ -157,7 +157,8 @@ def bot(user):
         try:
             p = printer.filter(track=['@ternviz'],  threaded=True)
             p.join()
-        except:
+        except Exception as e:
             time.sleep(1.0)
-            print('Died, restarting')
+            print('Died from', e)
+            print('restarting')
             continue

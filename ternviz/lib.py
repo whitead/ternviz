@@ -53,7 +53,13 @@ def vmd_script(width, id, high_quality=False):
 def gen_coords(s, name=None):
     m = Chem.MolFromSmiles(s)
     m = Chem.AddHs(m)
-    AllChem.EmbedMolecule(m, randomSeed=0xf00d)
+    status = AllChem.EmbedMolecule(m)
+    if status == -1:
+        # try random coords
+        print('Trying random coordinates')
+        ps = AllChem.ETKDGv2()
+        ps.useRandomCoords = True
+        status = AllChem.EmbedMolecule(m, ps)
     try:
         AllChem.MMFFOptimizeMolecule(m)
     except:
@@ -79,11 +85,17 @@ def movie(name, short_name='molecule', ffmpeg='ffmpeg'):
     out = os.path.join('/var/tmp', f'{name}.mp4')
     font_path = os.path.join(os.getenv('CONDA_PREFIX'),
                              'fonts', 'open-fonts', 'IBMPlexMono-Light.ttf')
+    # os.system(
+    #     f'{ffmpeg} -framerate 60 -f image2 -i /var/tmp/{name}.%04d.bmp -c:v h264 -crf 9 '
+    #     '-c:v libx264 -movflags +faststart -filter_complex '
+    #     '"[0:v]tpad=stop_mode=clone:stop_duration=2[b];'
+    #     f'[b]drawtext=text=\'{short_name}\':fontsize=36:x=(w-text_w)/2:y=(2*text_h):fontcolor=white:fontfile={font_path}[c];'
+    #     '[c]format=yuv420p[out]" '
+    #     f'-map "[out]" {out} > /dev/null')
     os.system(
         f'{ffmpeg} -framerate 60 -f image2 -i /var/tmp/{name}.%04d.bmp -c:v h264 -crf 9 '
         '-c:v libx264 -movflags +faststart -filter_complex '
-        '"[0:v]tpad=stop_mode=clone:stop_duration=2[b];'
-        f'[b]drawtext=text=\'{short_name}\':fontsize=36:x=(w-text_w)/2:y=(2*text_h):fontcolor=white:fontfile={font_path}[c];'
+        f'"[0:v]drawtext=text=\'{short_name}\':fontsize=36:x=(w-text_w)/2:y=(2*text_h):fontcolor=white:fontfile={font_path}[c];'
         '[c]format=yuv420p[out]" '
         f'-map "[out]" {out} > /dev/null')
     return out
