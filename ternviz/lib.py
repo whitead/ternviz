@@ -7,8 +7,8 @@ import sys
 from io import StringIO, BytesIO
 import requests
 import subprocess
-
-import ternviz
+from rdkit.Chem import AllChem
+from rdkit.DataStructs.cDataStructs import TanimotoSimilarity
 
 Chem.WrapLogs()
 
@@ -81,45 +81,49 @@ def find_template(smiles, count=10):
         print("Could not find a match")
         return None
     cids = data["IdentifierList"]["CID"]
-    for cid in cids:
-        url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/{cid}"
-        try:
-            reply = requests.get(
-                url,
-                params={"record_type": "3d"},
-                headers={"accept": "chemical/x-mdl-sdfile"},
-                timeout=10,
-            )
-        except requests.exceptions.Timeout:
-            print("Pubchem seems to be down right now")
+
+    # download and get tanimoto (3D first)
+    def get_record(cid):
+        def try_get(cid, require_3d):
+            url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/{cid}"
+            try:
+                reply = requests.get(
+                    url,
+                    params={"record_type": "3d" if require_3d else "2d"},
+                    headers={"accept": "chemical/x-mdl-sdfile"},
+                    timeout=10,
+                )
+            except requests.exceptions.Timeout:
+                print("Pubchem seems to be down right now")
+                return None
+            if reply.status_code != 200:
+                return None
+            data = reply.text
+            with Chem.ForwardSDMolSupplier(BytesIO(data.encode())) as fsuppl:
+                for mol in fsuppl:
+                    if mol:
+                        return mol
             return None
-        if reply.status_code != 200:
-            continue
-        print("Trying cid", cid)
-        data = reply.text
-        with Chem.ForwardSDMolSupplier(BytesIO(data.encode())) as fsuppl:
-            for mol in fsuppl:
-                if mol:
-                    yield mol
-    # get SDF of 2D if failed up until here
-    # works for Buckyball (how?)
-    url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/{cid}"
-    try:
-        reply = requests.get(
-            url,
-            headers={"accept": "chemical/x-mdl-sdfile"},
-            timeout=10,
-        )
-    except requests.exceptions.Timeout:
-        print("Pubchem seems to be down right now")
-        return None
-    print("Trying 2D cid", cid)
-    data = reply.text
-    with Chem.ForwardSDMolSupplier(BytesIO(data.encode())) as fsuppl:
-        for mol in fsuppl:
-            if mol:
-                yield mol
-    return None
+
+        m = try_get(cid, True)
+        if m:
+            return m, True
+        return try_get(cid, False), False
+
+    for cid in cids:
+        m, is_3d = get_record(cid)
+        if is_3d:
+            print("Trying 3D molecule", cid)
+            yield m
+        else:
+            print("Trying 2D molecule", cid)
+            m3 = Chem.AddHs(m)
+            if AllChem.EmbedMolecule(m3) == 0:
+                print("Embedded it")
+                yield m3
+            else:
+                print("Passed as 2D", cid)
+                yield m
 
 
 def gen_coords(s, name=None, template=None):
@@ -129,7 +133,7 @@ def gen_coords(s, name=None, template=None):
     status = -1
     if not template:
         # try pubchem templates (for a while)
-        for t in find_template(s, count=1):
+        for t in find_template(s, count=10):
             try:
                 if t:
                     m = AllChem.ConstrainedEmbed(m, t)
@@ -139,25 +143,22 @@ def gen_coords(s, name=None, template=None):
                 print("Failed on template")
                 print(e)
                 continue
-        if status == -1:
-            print("Failed on all templates, trying ignore template")
-            status = AllChem.EmbedMolecule(m)
     else:
         try:
             m = AllChem.ConstrainedEmbed(m, template)
             status = 0
         except Exception as e:
-            print(e)
             print("Trying ignore template")
-            status = AllChem.EmbedMolecule(m)
     if status == -1:
+        print("Failed to match template, embedding alone")
         status = AllChem.EmbedMolecule(m)
     if status == -1:
         # try random coords
-        print("Trying random coordinates")
-        ps = AllChem.ETKDGv2()
-        ps.useRandomCoords = True
-        status = AllChem.EmbedMolecule(m, ps)
+        print("Trying random coordinates and fancy coord gen")
+        params = AllChem.ETKDGv3()
+        params.useSmallRingTorsions = True
+        params.useRandomCoords = True
+        status = AllChem.EmbedMolecule(m, params)
     try:
         AllChem.UFFOptimizeMolecule(m)
     except:
