@@ -4,11 +4,17 @@ from rdkit.Chem import AllChem
 import tempfile
 import os
 import sys
-from io import StringIO
+from io import StringIO, BytesIO
 import requests
 import subprocess
 
 Chem.WrapLogs()
+
+
+def canonicalize(smiles):
+    mol = Chem.MolFromSmiles(smiles, sanitize=True)
+    smiles = Chem.MolToSmiles(mol, isomericSmiles=False, canonical=True)
+    return smiles
 
 
 def check_smiles(s):
@@ -50,16 +56,70 @@ def vmd_script(width, id, high_quality=False):
     return result
 
 
-def gen_coords(s, name=None):
+def find_template(smiles):
+    # clean-up smiles
+    smiles = requests.utils.quote(smiles)
+    url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/fastsimilarity_2d/smiles/{smiles}/cids"
+    try:
+        reply = requests.get(
+            url,
+            params={"MaxRecords": 1},
+            headers={"accept": "application/json"},
+            timeout=10,
+        )
+    except requests.exceptions.Timeout:
+        print("Pubchem seems to be down right now")
+        return None
+    try:
+        data = reply.json()
+    except:
+        print("Could not find a match")
+        return None
+    if len(data["IdentifierList"]["CID"]) == 0:
+        print("Could not find a match")
+        return None
+    cid = data["IdentifierList"]["CID"][0]
+    url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/{cid}"
+    try:
+        reply = requests.get(
+            url,
+            headers={"accept": "chemical/x-mdl-sdfile"},
+            timeout=10,
+        )
+    except requests.exceptions.Timeout:
+        print("Pubchem seems to be down right now")
+        return None
+    data = reply.text
+    with Chem.ForwardSDMolSupplier(BytesIO(data.encode())) as fsuppl:
+        for mol in fsuppl:
+            if mol:
+                return mol
+    return None
+
+
+def gen_coords(s, name=None, template=None):
+    s = canonicalize(s)
     m = Chem.MolFromSmiles(s)
     m = Chem.AddHs(m)
-    status = AllChem.EmbedMolecule(m)
+    if template:
+        m = AllChem.ConstrainedEmbed(m, template)
+        status = 0
+    else:
+        status = AllChem.EmbedMolecule(m)
     if status == -1:
         # try random coords
         print("Trying random coordinates")
         ps = AllChem.ETKDGv2()
         ps.useRandomCoords = True
         status = AllChem.EmbedMolecule(m, ps)
+    if status == -1:
+        # try to find template molecule
+        print("Trying to find template molecule instead")
+        return gen_coords(s, name=name, template=find_template(s))
+    try:
+        AllChem.UFFOptimizeMolecule(m)
+    except:
+        pass
     try:
         AllChem.MMFFOptimizeMolecule(m)
     except:

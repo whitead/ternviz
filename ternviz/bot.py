@@ -7,7 +7,7 @@ import ternviz
 import multiprocessing
 import time
 
-TIMEOUT_COORDS = 10
+TIMEOUT_COORDS = 60
 TIMEOUT_RENDER = 1000
 
 

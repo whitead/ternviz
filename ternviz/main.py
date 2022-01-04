@@ -8,7 +8,7 @@ from .lib import gen_coords, movie, render, check_smiles, get_name, multiplex
 @click.option("--names", default=None, help="comma separated names")
 @click.option("--vmd", default="vmd")
 @click.option("--ffmpeg", default="ffmpeg")
-@click.option("--low-quality", is_flag=True, default=False)
+@click.option("--low-quality", is_flag=True, default=True)
 def main(smiles, names, vmd, ffmpeg, low_quality):
     if len(smiles) == 0:
         return
