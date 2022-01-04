@@ -13,7 +13,7 @@ TIMEOUT_RENDER = 1000
 
 def smiles_error(api, id, s):
     return api.update_status(
-        status=f"Failed to generate coordinates for your SMILES 😢\n Your SMILES were '{s}'",
+        status=f"Failed to generate coordinates for your SMILES 😢\n Your SMILES were '{s[:80]}'",
         in_reply_to_status_id=id,
         auto_populate_reply_metadata=True,
     )
@@ -36,19 +36,21 @@ def full_text(api, status_id):
     return text
 
 
-def make_pdb(api, id, smiles):
+def make_pdb(api, id, smiles, template=None):
     smiles_status = ternviz.check_smiles(smiles)
     if smiles_status:
         se = smiles_error(api, id, smiles)
         api.update_status(
-            status=smiles_status[:179],
+            status=smiles_status[:170],
             in_reply_to_status_id=se.id,
             auto_populate_reply_metadata=True,
         )
         return None, None
 
     print("Determined SMILES are", smiles)
-    p = multiprocessing.Process(target=ternviz.gen_coords, args=(smiles, str(id)))
+    p = multiprocessing.Process(
+        target=ternviz.gen_coords, args=(smiles, str(id), template)
+    )
     p.start()
     p.join(TIMEOUT_COORDS)
     if p.is_alive():
