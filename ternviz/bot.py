@@ -7,8 +7,8 @@ import ternviz
 import multiprocessing
 import time
 
-TIMEOUT_COORDS = 60
-TIMEOUT_RENDER = 1000
+TIMEOUT_COORDS = 180
+TIMEOUT_RENDER = 2000
 
 
 def smiles_error(api, id, s):
@@ -46,10 +46,14 @@ def make_pdb(api, id, smiles, template=None):
             auto_populate_reply_metadata=True,
         )
         return None, None
-
+    if template:
+        print("Loading template")
+        template_mol = Chem.MolFromPDBFile(template)
+    else:
+        template_mol = None
     print("Determined SMILES are", smiles)
     p = multiprocessing.Process(
-        target=ternviz.gen_coords, args=(smiles, str(id), template)
+        target=ternviz.gen_coords, args=(smiles, str(id), template_mol)
     )
     p.start()
     p.join(TIMEOUT_COORDS)
@@ -84,8 +88,8 @@ def do_render(api, pdb_file, id, short_name, width):
     return out
 
 
-def render(api, status, smiles, width=800):
-    pdb_file, short_name = make_pdb(api, status.id, smiles)
+def render(api, status, smiles, width=800, template_pdb=None):
+    pdb_file, short_name = make_pdb(api, status.id, smiles, template=template_pdb)
     if not pdb_file:
         return None, None
     try:
@@ -100,7 +104,7 @@ def render(api, status, smiles, width=800):
         api, pdb_file, str(status.id) + short_name, short_name, width=width
     )
     api.destroy_status(init_status.id)
-    return movie, short_name
+    return movie, short_name, pdb_file
 
 
 @click.command()
@@ -135,11 +139,13 @@ def bot(user):
             start = time.time_ns()
             if call_type == "render":
                 smiles = full_text(api, status.id).split("render")[-1].strip()
-                movie, short_name = render(api, status, smiles)
+                movie, short_name, _ = render(api, status, smiles)
             elif call_type == "compare":
                 smiles = list(full_text(api, status.id).split("compare")[-1].split())
-                m1, s1 = render(api, status, smiles[0], width=800 // 2)
-                m2, s2 = render(api, status, smiles[1], width=800 // 2)
+                m1, s1, pdb_file = render(api, status, smiles[0], width=800 // 2)
+                m2, s2, _ = render(
+                    api, status, smiles[1], width=800 // 2, template_pdb=pdb_file
+                )
                 movie = ternviz.multiplex([m1, m2], status.id)
                 short_name = s1 + " vs. " + s2
             if not movie:
