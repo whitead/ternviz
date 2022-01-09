@@ -28,6 +28,7 @@ setup(
     entry_points="""
         [console_scripts]
         ternviz=ternviz.main:main
+        ternviz-pdb=ternviz.main:pdb_main
         ternviz-bot=ternviz.bot:bot
             """,
     package_data={"ternviz": ["vmd/*.vmd"]},

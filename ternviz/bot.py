@@ -11,9 +11,9 @@ TIMEOUT_COORDS = 180
 TIMEOUT_RENDER = 2000
 
 
-def smiles_error(api, id, s):
+def coord_error(api, id, s):
     return api.update_status(
-        status=f"Failed to generate coordinates for your SMILES 😢\n Your SMILES were '{s[:80]}'",
+        status=f"Failed to generate coordinates for your query 😢\n Your query was '{s[:80]}'",
         in_reply_to_status_id=id,
         auto_populate_reply_metadata=True,
     )
@@ -36,41 +36,54 @@ def full_text(api, status_id):
     return text
 
 
-def make_pdb(api, id, smiles, template=None):
-    smiles_status = ternviz.check_smiles(smiles)
-    if smiles_status:
-        se = smiles_error(api, id, smiles)
-        api.update_status(
-            status=smiles_status[:170],
-            in_reply_to_status_id=se.id,
-            auto_populate_reply_metadata=True,
-        )
-        return None, None
-    if template:
-        print("Loading template")
-        template_mol = Chem.MolFromPDBFile(template)
+def get_pdb_name(pdb_file):
+    with open(pdb_file, "r") as f:
+        return f.readline().split()[-1]
+
+
+def make_pdb(api, id, query_text, template=None, protein=False):
+    if protein:
+        print("Finding protein query")
+        p = multiprocessing.Process(target=ternviz.get_pdb, args=(query_text, str(id)))
     else:
-        template_mol = None
-    print("Determined SMILES are", smiles)
-    p = multiprocessing.Process(
-        target=ternviz.gen_coords, args=(smiles, str(id), template_mol)
-    )
+        smiles = query_text
+        smiles_status = ternviz.check_smiles(smiles)
+        if smiles_status:
+            se = coord_error(api, id, smiles)
+            api.update_status(
+                status=smiles_status[:170],
+                in_reply_to_status_id=se.id,
+                auto_populate_reply_metadata=True,
+            )
+            return None, None
+        if template:
+            print("Loading template")
+            template_mol = Chem.MolFromPDBFile(template)
+        else:
+            template_mol = None
+        print("Determined SMILES are", smiles)
+        p = multiprocessing.Process(
+            target=ternviz.gen_coords, args=(smiles, str(id), template_mol)
+        )
     p.start()
     p.join(TIMEOUT_COORDS)
     if p.is_alive():
         p.terminate()
         p.join()
-        smiles_error(api, id, smiles)
+        coord_error(api, id, query_text)
         return None, None
     out = os.path.join("/var/tmp", f"{id}.pdb")
     if not os.path.exists(out):
-        smiles_error(api, id, smiles)
+        coord_error(api, id, query_text)
         return None, None
-    return out, ternviz.get_name(smiles)
+    return out, get_pdb_name(out) if protein else ternviz.get_name(smiles)
 
 
-def do_render(api, pdb_file, id, short_name, width):
-    p = multiprocessing.Process(target=ternviz.render, args=(pdb_file, width, str(id)))
+def do_render(api, pdb_file, id, short_name, width, protein):
+    p = multiprocessing.Process(
+        target=ternviz.render,
+        args=(pdb_file, width, str(id), "render-pdb.vmd" if protein else "render.vmd"),
+    )
     p.start()
     p.join(TIMEOUT_RENDER)
     if p.is_alive():
@@ -88,20 +101,31 @@ def do_render(api, pdb_file, id, short_name, width):
     return out
 
 
-def render(api, status, smiles, width=800, template_pdb=None):
-    pdb_file, short_name = make_pdb(api, status.id, smiles, template=template_pdb)
+def render(api, status, smiles, width=800, template_pdb=None, protein=False):
+    pdb_file, short_name = make_pdb(
+        api, status.id, smiles, template=template_pdb, protein=protein
+    )
     if not pdb_file:
         return None, None
     try:
+        if protein:
+            msg = f"{short_name} is sure a pretty protein 😍 Working on rendering 🎨... This can take a few minutes. I will delete this message when I'm done."
+        else:
+            msg = f"These SMILES look great 😁 Working on rendering {short_name} 🎨... This can take a few minutes. I will delete this message when I'm done."
         init_status = api.update_status(
-            status=f"These SMILES look great 😁 Working on rendering {short_name} 🎨... This can take a few minutes. I will delete this message when I'm done.",
+            status=msg,
             in_reply_to_status_id=status.id,
             auto_populate_reply_metadata=True,
         )
     except tweepy.os.error.HTTPException as e:
         return None, None
     movie = do_render(
-        api, pdb_file, str(status.id) + short_name, short_name, width=width
+        api,
+        pdb_file,
+        str(status.id) + short_name,
+        short_name,
+        width=width,
+        protein=protein,
     )
     api.destroy_status(init_status.id)
     return movie, short_name, pdb_file
@@ -126,25 +150,40 @@ def bot(user):
         def on_status(self, status):
             print("Processing", status.id)
             call_type = ""
+            protein = False
+            if "please" in status.text:
+                status.text = status.text.replace("please", "")
             if "render" in status.text:
                 call_type = "render"
             elif "compare" in status.text:
                 call_type = "compare"
+            if "protein" in status.text:
+                protein = True
+                status.text = status.text.replace("protein", "")
             if not call_type:
-                print("Determined to be reply with no render in body")
+                print("Determined to be reply with no render or compare in body")
                 return
             if status.user.id == my_user_id:
                 print("Determined to be self-reply")
                 return
             start = time.time_ns()
             if call_type == "render":
-                smiles = full_text(api, status.id).split("render")[-1].strip()
-                movie, short_name, _ = render(api, status, smiles)
+                query_text = full_text(api, status.id).split("render")[-1].strip()
+                movie, short_name, _ = render(api, status, query_text, protein=protein)
             elif call_type == "compare":
-                smiles = list(full_text(api, status.id).split("compare")[-1].split())
-                m1, s1, pdb_file = render(api, status, smiles[0], width=800 // 2)
+                query_text = list(
+                    full_text(api, status.id).split("compare")[-1].split()
+                )
+                m1, s1, pdb_file = render(
+                    api, status, query_text[0], width=800 // 2, protein=protein
+                )
                 m2, s2, _ = render(
-                    api, status, smiles[1], width=800 // 2, template_pdb=pdb_file
+                    api,
+                    status,
+                    query_text[1],
+                    width=800 // 2,
+                    template_pdb=pdb_file,
+                    protein=protein,
                 )
                 movie = ternviz.multiplex([m1, m2], status.id)
                 short_name = s1 + " vs. " + s2

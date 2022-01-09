@@ -1,12 +1,15 @@
 mol modstyle 0 0 Licorice 0.300000 12.000000 12.000000
 mol modmaterial 0 0 AOChalky
-color Name C gray
+mol modcolor 0 0 Element
+# wish this worked!
+color change hex 0 blue 0xEF 0x47 0x6F
+color Element C blue
 axes location Off
 display shadows off
 display ambientocclusion off
 display resetview
 display resize WIDTH 600
-for {set i 0} {$i < 360} {incr i 1} {
+for {set i 0} {$i < 3} {incr i 1} {
 	# force the update
 	display update
 	# and take the picture

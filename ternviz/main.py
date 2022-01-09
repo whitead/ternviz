@@ -1,6 +1,6 @@
 import click
 import os
-from .lib import gen_coords, movie, render, check_smiles, get_name, multiplex
+from .lib import gen_coords, movie, render, check_smiles, get_name, multiplex, get_pdb
 
 
 @click.command()
@@ -31,7 +31,13 @@ def main(smiles, names, vmd, ffmpeg, low_quality):
         if not p:
             raise ValueError("Failed to generate coordinates")
         print("Rendering", s)
-        render(p.name, width, id=n, vmd=vmd, high_quality=not low_quality)
+        render(
+            p.name,
+            width,
+            id=n,
+            vmd=vmd,
+            script_name="render-lq.vmd" if low_quality else "render.vmd",
+        )
         print("Making Movie for", s)
         m = movie(n, ffmpeg=ffmpeg, short_name=n)
         movies.append(m)
@@ -41,3 +47,20 @@ def main(smiles, names, vmd, ffmpeg, low_quality):
         return multiplex(movies, "out")
 
     return movies[0]
+
+
+@click.command()
+@click.argument("pdb-query")
+@click.option("--vmd", default="vmd")
+@click.option("--ffmpeg", default="ffmpeg")
+def pdb_main(pdb_query, vmd, ffmpeg):
+    pdb_id, p = get_pdb(pdb_query)
+    if not pdb_id:
+        raise ValueError("Failed to find pdb")
+    print("Rendering", pdb_id)
+    render(p.name, 800, id=pdb_id, vmd=vmd, script_name="render-pdb.vmd")
+    print("Making Movie for", pdb_id)
+    p.close()
+    os.unlink(p.name)
+    m = movie(pdb_id, ffmpeg=ffmpeg, short_name=pdb_id)
+    return m

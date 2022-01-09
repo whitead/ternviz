@@ -43,14 +43,11 @@ def get_name(s):
     return Chem.rdMolDescriptors.CalcMolFormula(Chem.MolFromSmiles(s))
 
 
-def vmd_script(width, id, high_quality=False):
+def vmd_script(width, id, script_name="render.vmd"):
     from importlib_resources import files
     import ternviz.vmd
 
-    if high_quality:
-        fp = files(ternviz.vmd).joinpath("render.vmd")
-    else:
-        fp = files(ternviz.vmd).joinpath("render-lq.vmd")
+    fp = files(ternviz.vmd).joinpath(script_name)
     result = []
     with fp.open("r") as f:
         for line in f.readlines():
@@ -176,14 +173,39 @@ def gen_coords(s, name=None, template=None):
     return tmp
 
 
-def render(pdb_path, width, id="movie", vmd="vmd", high_quality=True):
+def render(pdb_path, width, id="movie", script_name="render.vmd", vmd="vmd"):
     with tempfile.NamedTemporaryFile() as script:
         with open(script.name, "w") as f:
-            f.writelines(vmd_script(width, id, high_quality))
+            f.writelines(vmd_script(width, id, script_name))
         subprocess.run(
             f"{vmd} -dispdev text -eofexit {pdb_path} < {script.name} > /dev/null",
             shell=True,
         )
+
+
+def get_pdb(query_string, name=None):
+    url = "https://search.rcsb.org/rcsbsearch/v1/query?json={search-request}"
+    query = {
+        "query": {
+            "type": "terminal",
+            "service": "full_text",
+            "parameters": {"value": query_string},
+        },
+        "return_type": "entry",
+    }
+    r = requests.post(url, json=query)
+    if "result_set" in r.json() and len(r.json()["result_set"]) > 0:
+        pdbid = r.json()["result_set"][0]["identifier"]
+        print(pdbid)
+        url = f"https://files.rcsb.org/download/{pdbid}.pdb"
+        pdb = requests.get(url)
+        if name is None:
+            tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".pdb")
+        else:
+            tmp = open(os.path.join("/var/tmp", name + ".pdb"), "wb")
+        tmp.write(pdb.text.encode())
+        return pdbid, tmp
+    return None, None
 
 
 def movie(name, short_name="molecule", ffmpeg="ffmpeg"):
@@ -199,7 +221,7 @@ def movie(name, short_name="molecule", ffmpeg="ffmpeg"):
     #     '[c]format=yuv420p[out]" '
     #     f'-map "[out]" {out} > /dev/null')
     subprocess.run(
-        f"{ffmpeg} -framerate 60 -f image2 -i /var/tmp/{name}.%04d.bmp -c:v h264 -crf 9 "
+        f"{ffmpeg} -framerate 30 -f image2 -i /var/tmp/{name}.%04d.bmp -c:v h264 -crf 9 "
         "-c:v libx264 -movflags +faststart -filter_complex "
         f"\"[0:v]drawtext=text='{short_name}':fontsize=36:x=(w-text_w)/2:y=(2*text_h):fontcolor=white:fontfile={font_path}[c];"
         '[c]format=yuv420p[out]" '
