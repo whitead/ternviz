@@ -9,7 +9,8 @@ display shadows off
 display ambientocclusion off
 display resetview
 display resize WIDTH 600
-for {set i 0} {$i < 3} {incr i 1} {
+color Display Background BACKGROUND
+for {set i 0} {$i < 360} {incr i 1} {
 	# force the update
 	display update
 	# and take the picture

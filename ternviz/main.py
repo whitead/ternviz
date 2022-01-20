@@ -52,15 +52,21 @@ def main(smiles, names, vmd, ffmpeg, low_quality):
 @click.command()
 @click.argument("pdb-query")
 @click.option("--vmd", default="vmd")
+@click.option("--color", default="black")
 @click.option("--ffmpeg", default="ffmpeg")
-def pdb_main(pdb_query, vmd, ffmpeg):
+def pdb_main(pdb_query, vmd, color, ffmpeg):
     pdb_id, p = get_pdb(pdb_query)
     if not pdb_id:
         raise ValueError("Failed to find pdb")
-    print("Rendering", pdb_id)
-    render(p.name, 800, id=pdb_id, vmd=vmd, script_name="render-pdb.vmd")
+    print("Rendering", pdb_id, "in file", p.name)
+    render(p.name, 800, id=pdb_id, vmd=vmd, script_name="render-pdb.vmd", color=color)
     print("Making Movie for", pdb_id)
     p.close()
-    os.unlink(p.name)
-    m = movie(pdb_id, ffmpeg=ffmpeg, short_name=pdb_id)
+    # os.unlink(p.name)
+    m = movie(
+        pdb_id,
+        ffmpeg=ffmpeg,
+        short_name=pdb_id,
+        color="black" if color == "white" else "white",
+    )
     return m

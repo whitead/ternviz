@@ -43,7 +43,7 @@ def get_name(s):
     return Chem.rdMolDescriptors.CalcMolFormula(Chem.MolFromSmiles(s))
 
 
-def vmd_script(width, id, script_name="render.vmd"):
+def vmd_script(width, id, script_name="render.vmd", color="black"):
     from importlib_resources import files
     import ternviz.vmd
 
@@ -51,7 +51,11 @@ def vmd_script(width, id, script_name="render.vmd"):
     result = []
     with fp.open("r") as f:
         for line in f.readlines():
-            result.append(line.replace("WIDTH", str(width)).replace("__ID__", id))
+            result.append(
+                line.replace("WIDTH", str(width))
+                .replace("__ID__", id)
+                .replace("BACKGROUND", color)
+            )
     return result
 
 
@@ -173,10 +177,13 @@ def gen_coords(s, name=None, template=None):
     return tmp
 
 
-def render(pdb_path, width, id="movie", script_name="render.vmd", vmd="vmd"):
+def render(
+    pdb_path, width, id="movie", script_name="render.vmd", color="black", vmd="vmd"
+):
     with tempfile.NamedTemporaryFile() as script:
         with open(script.name, "w") as f:
-            f.writelines(vmd_script(width, id, script_name))
+            f.writelines(vmd_script(width, id, script_name, color=color))
+        print(f"{vmd} -dispdev text -eofexit {pdb_path} < {script.name} > /dev/null")
         subprocess.run(
             f"{vmd} -dispdev text -eofexit {pdb_path} < {script.name} > /dev/null",
             shell=True,
@@ -197,34 +204,29 @@ def get_pdb(query_string, name=None):
     if "result_set" in r.json() and len(r.json()["result_set"]) > 0:
         pdbid = r.json()["result_set"][0]["identifier"]
         print(pdbid)
-        url = f"https://files.rcsb.org/download/{pdbid}.pdb"
+        url = f"https://files.rcsb.org/download/{pdbid}.cif"
         pdb = requests.get(url)
         if name is None:
-            tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".pdb")
+            tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".cif")
         else:
-            tmp = open(os.path.join("/var/tmp", name + ".pdb"), "wb")
+            tmp = open(os.path.join("/var/tmp", name + ".cif"), "wb")
         tmp.write(pdb.text.encode())
+        print(tmp.name)
         return pdbid, tmp
     return None, None
 
 
-def movie(name, short_name="molecule", ffmpeg="ffmpeg"):
+def movie(name, short_name="molecule", color="white", ffmpeg="ffmpeg"):
     out = os.path.join("/var/tmp", f"{name}.mp4")
     font_path = os.path.join(
         os.getenv("CONDA_PREFIX"), "fonts", "open-fonts", "IBMPlexMono-Light.ttf"
     )
-    # os.system(
-    #     f'{ffmpeg} -framerate 60 -f image2 -i /var/tmp/{name}.%04d.bmp -c:v h264 -crf 9 '
-    #     '-c:v libx264 -movflags +faststart -filter_complex '
-    #     '"[0:v]tpad=stop_mode=clone:stop_duration=2[b];'
-    #     f'[b]drawtext=text=\'{short_name}\':fontsize=36:x=(w-text_w)/2:y=(2*text_h):fontcolor=white:fontfile={font_path}[c];'
-    #     '[c]format=yuv420p[out]" '
-    #     f'-map "[out]" {out} > /dev/null')
     subprocess.run(
         f"{ffmpeg} -framerate 30 -f image2 -i /var/tmp/{name}.%04d.bmp -c:v h264 -crf 9 "
         "-c:v libx264 -movflags +faststart -filter_complex "
-        f"\"[0:v]drawtext=text='{short_name}':fontsize=36:x=(w-text_w)/2:y=(2*text_h):fontcolor=white:fontfile={font_path}[c];"
-        '[c]format=yuv420p[out]" '
+        f"\"[0:v]drawtext=text='{short_name}':fontsize=48:x=(w-text_w)/2:y=(2*text_h):fontcolor={color}:fontfile={font_path}[c];"
+        "[c]eq=saturation=0.8[d];"
+        '[d]format=yuv420p[out]" '
         f'-map "[out]" {out} > /dev/null',
         shell=True,
     )

@@ -1,12 +1,25 @@
-mol modstyle 0 0 NewCartoon 0.300000 10.000000 4.100000 0
-mol modcolor 0 0 Structure
+set protein [atomselect top "all"]
+set natoms [$protein num]
+if {$natoms < 25000} {
+	mol modstyle 0 0 NewCartoon 0.300000 10.000000 4.100000 0
+	mol modcolor 0 0 Structure
+	display shadows on
+	display resize WIDTH 600
+} else {
+	mol modstyle 0 0 VDW 1.000000 12.000000
+	mol modcolor 0 0 Chain
+	set width [expr WIDTH * 2]
+	display resize $width 1200
+}
 mol modmaterial 0 0 AOChalky
 color Structure Alpha Helix mauve
+color Display Background BACKGROUND
+color Name C gray
 axes location Off
-display shadows on
 display ambientocclusion on
 display resetview
-display resize WIDTH 600
+display scale 1.4
+rotate x by -90.0
 for {set i 0} {$i < 360} {incr i 1} {
 	# force the update
 	display update
