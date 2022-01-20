@@ -114,16 +114,12 @@ def find_template(smiles, count=10):
     for cid in cids:
         m, is_3d = get_record(cid)
         if is_3d:
-            print("Trying 3D molecule", cid)
             yield m
         else:
-            print("Trying 2D molecule", cid)
             m3 = Chem.AddHs(m)
             if AllChem.EmbedMolecule(m3) == 0:
-                print("Embedded it")
                 yield m3
             else:
-                print("Passed as 2D", cid)
                 yield m
 
 
@@ -183,7 +179,6 @@ def render(
     with tempfile.NamedTemporaryFile() as script:
         with open(script.name, "w") as f:
             f.writelines(vmd_script(width, id, script_name, color=color))
-        print(f"{vmd} -dispdev text -eofexit {pdb_path} < {script.name} > /dev/null")
         subprocess.run(
             f"{vmd} -dispdev text -eofexit {pdb_path} < {script.name} > /dev/null",
             shell=True,
