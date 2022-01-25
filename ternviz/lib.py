@@ -235,3 +235,18 @@ def multiplex(videos, name, ffmpeg="ffmpeg"):
         f"{ffmpeg} -i {videos[0]} -i {videos[1]} -filter_complex hstack=inputs=2 {out} > /dev/null"
     )
     return out
+
+def align(ref, *args):
+    import MDAnalysis
+
+    ref = MDAnalysis.Universe(ref)
+
+    # gonna overwrite, because we're CRAZY
+    for f in args:
+        if os.path.exists(f):
+            p = MDAnalysis.Universe(f)
+            alignment = align.AlignTraj(
+                p, ref, select='all', weights="mass", filename=f)
+            alignment.run()
+        else:
+            raise FileNotFoundError('Could not find structure', f)

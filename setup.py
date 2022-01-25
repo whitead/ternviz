@@ -23,6 +23,7 @@ setup(
         "python-dotenv",
         "requests",
         "importlib_resources",
+        "MDAnalysis"
     ],
     zip_safe=True,
     entry_points="""
@@ -30,6 +31,7 @@ setup(
         ternviz=ternviz.main:main
         ternviz-pdb=ternviz.main:pdb_main
         ternviz-bot=ternviz.bot:bot
+        ternviz-align=ternviz.bot:align_cmd
             """,
     package_data={"ternviz": ["vmd/*.vmd"]},
     long_description=long_description,

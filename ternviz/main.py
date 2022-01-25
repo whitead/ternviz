@@ -1,6 +1,6 @@
 import click
 import os
-from .lib import gen_coords, movie, render, check_smiles, get_name, multiplex, get_pdb
+from .lib import gen_coords, movie, render, check_smiles, get_name, multiplex, get_pdb, align
 
 
 @click.command()
@@ -70,3 +70,9 @@ def pdb_main(pdb_query, vmd, color, ffmpeg):
         color="black" if color == "white" else "white",
     )
     return m
+
+@click.command()
+@click.argument("ref")
+@click.argument("aligns", nargs=-1)
+def align_cmd(ref, aligns):
+    align(ref, *aligns)
