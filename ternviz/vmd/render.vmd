@@ -1,7 +1,7 @@
 mol modstyle 0 0 Licorice 0.300000 12.000000 12.000000
 mol modmaterial 0 0 AOChalky
-color Name C gray
-# color change rgb 10 cyan 0.93 0.28 0.435
+mol modcolor 0 0 Element
+color Element C gray
 axes location Off
 display shadows on
 display ambientocclusion on

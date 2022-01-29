@@ -1,6 +1,15 @@
 import click
 import os
-from .lib import gen_coords, movie, render, check_smiles, get_name, multiplex, get_pdb, align
+from .lib import (
+    gen_coords,
+    movie,
+    render,
+    check_smiles,
+    get_name,
+    multiplex,
+    get_pdb,
+    align,
+)
 
 
 @click.command()
@@ -8,7 +17,7 @@ from .lib import gen_coords, movie, render, check_smiles, get_name, multiplex, g
 @click.option("--names", default=None, help="comma separated names")
 @click.option("--vmd", default="vmd")
 @click.option("--ffmpeg", default="ffmpeg")
-@click.option("--low-quality", is_flag=True, default=True)
+@click.option("--low-quality", is_flag=True, default=False)
 def main(smiles, names, vmd, ffmpeg, low_quality):
     if len(smiles) == 0:
         return
@@ -54,22 +63,30 @@ def main(smiles, names, vmd, ffmpeg, low_quality):
 @click.option("--vmd", default="vmd")
 @click.option("--color", default="black")
 @click.option("--ffmpeg", default="ffmpeg")
-def pdb_main(pdb_query, vmd, color, ffmpeg):
-    pdb_id, p = get_pdb(pdb_query)
+@click.option("--width", default=800)
+@click.option("--name", default=None)
+def pdb_main(pdb_query, vmd, color, ffmpeg, width, name):
+    if ".pdb" in pdb_query and os.path.exists(pdb_query):
+        print("Assuming you meant me to use path")
+        pdb_id = pdb_query.split(".pdb")[0]
+        p = open(pdb_query, "r")
+    else:
+        pdb_id, p = get_pdb(pdb_query)
     if not pdb_id:
         raise ValueError("Failed to find pdb")
     print("Rendering", pdb_id, "in file", p.name)
-    render(p.name, 800, id=pdb_id, vmd=vmd, script_name="render-pdb.vmd", color=color)
+    render(p.name, width, id=pdb_id, vmd=vmd, script_name="render.vmd", color=color)
     print("Making Movie for", pdb_id)
     p.close()
     # os.unlink(p.name)
     m = movie(
         pdb_id,
         ffmpeg=ffmpeg,
-        short_name=pdb_id,
+        short_name=pdb_id if name is None else name,
         color="black" if color == "white" else "white",
     )
     return m
+
 
 @click.command()
 @click.argument("ref")

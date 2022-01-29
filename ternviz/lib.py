@@ -236,17 +236,24 @@ def multiplex(videos, name, ffmpeg="ffmpeg"):
     )
     return out
 
+
 def align(ref, *args):
     import MDAnalysis
+    from MDAnalysis.analysis import align
 
     ref = MDAnalysis.Universe(ref)
 
-    # gonna overwrite, because we're CRAZY
     for f in args:
         if os.path.exists(f):
+            out_f = f.split(".pdb")[0] + "-align.pdb"
             p = MDAnalysis.Universe(f)
             alignment = align.AlignTraj(
-                p, ref, select='all', weights="mass", filename=f)
+                p,
+                ref,
+                select="backbone",
+                weights=p.select_atoms("backbone").bfactors / 100,
+                filename=out_f,
+            )
             alignment.run()
         else:
-            raise FileNotFoundError('Could not find structure', f)
+            raise FileNotFoundError("Could not find structure", f)
