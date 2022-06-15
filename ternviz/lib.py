@@ -174,13 +174,17 @@ def gen_coords(s, name=None, template=None):
 
 
 def render(
-    pdb_path, width, id="movie", script_name="render.vmd", color="black", vmd="vmd"
+    pdb_path, width, id="movie", script_name="render.vmd", color="black", vmd="vmd", args=[]
 ):
-    with tempfile.NamedTemporaryFile() as script:
+    with tempfile.NamedTemporaryFile(delete=False) as script:
         with open(script.name, "w") as f:
             f.writelines(vmd_script(width, id, script_name, color=color))
+        if len(args) > 0:
+            arg_str = f'-args {" ".join(args)}'
+        else:
+            arg_str = ''
         subprocess.run(
-            f"{vmd} -dispdev text -eofexit {pdb_path} < {script.name} > /dev/null",
+            f"'{vmd}' -dispdev text  -eofexit '{pdb_path}' {arg_str} < '{script.name}'",
             shell=True,
         )
 
