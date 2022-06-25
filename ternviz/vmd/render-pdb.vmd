@@ -1,8 +1,10 @@
+set start_i [lindex $argv 0]
+set end_i [lindex $argv 1]
 set protein [atomselect top "all"]
 set natoms [$protein num]
 if {$natoms < 25000} {
 	mol modstyle 0 0 NewCartoon 0.300000 10.000000 4.100000 0
-	mol modcolor 0 0 Structure
+	mol modcolor 0 0 Chain
 	display shadows on
 	display resize WIDTH 600
 } else {
@@ -20,7 +22,8 @@ display ambientocclusion on
 display resetview
 display scale 1.4
 rotate x by -90.0
-for {set i 0} {$i < 360} {incr i 1} {
+rotate y by $start_i
+for {set i $start_i} {$i < $end_i} {incr i 1} {
 	# force the update
 	display update
 	# and take the picture

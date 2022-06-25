@@ -59,30 +59,56 @@ def main(smiles, names, vmd, ffmpeg, low_quality):
 
 
 @click.command()
-@click.argument("pdb-query")
+@click.argument("pdb-query", nargs=-1)
 @click.option("--vmd", default="vmd")
 @click.option("--color", default="black")
+@click.option("--name", default=None)
 @click.option("--ffmpeg", default="ffmpeg")
 @click.option("--width", default=800)
 @click.option("--name", default=None)
-def pdb_main(pdb_query, vmd, color, ffmpeg, width, name):
-    if ".pdb" in pdb_query and os.path.exists(pdb_query):
-        print("Assuming you meant me to use path")
-        pdb_id = pdb_query.split(".pdb")[0]
-        p = open(pdb_query, "r")
-    else:
+def pdb_main(pdb_query, vmd, color, ffmpeg, name, frames=60):
+    multi = False
+    if len(pdb_query) == 1:
+        pdb_query = pdb_query[0]
         pdb_id, p = get_pdb(pdb_query)
+        path = p.name
+    else:
+        pdb_id = str(1)
+        multi = True
+        path = pdb_query
     if not pdb_id:
         raise ValueError("Failed to find pdb")
-    print("Rendering", pdb_id, "in file", p.name)
-    render(p.name, width, id=pdb_id, vmd=vmd, script_name="render.vmd", color=color)
+
+    print("Rendering", pdb_id, "in file", path, "multi = ", multi)
+    if multi:
+        N = len(pdb_query)
+        for i in range(N):
+            render(
+                os.path.abspath(path[i]),
+                800,
+                id=pdb_id,
+                vmd=vmd,
+                script_name="render-pdb.vmd",
+                color=color,
+                args=[str(i * frames // N), str((i + 1) * frames // N)],
+            )
+    else:
+        render(
+            path,
+            800,
+            id=pdb_id,
+            vmd=vmd,
+            script_name="render-pdb.vmd",
+            color=color,
+            args=["0", "frames"],
+        )
     print("Making Movie for", pdb_id)
-    p.close()
-    # os.unlink(p.name)
+    if not multi:
+        p.close()
     m = movie(
         pdb_id,
         ffmpeg=ffmpeg,
-        short_name=pdb_id if name is None else name,
+        short_name=name if name else pdb_id,
         color="black" if color == "white" else "white",
     )
     return m
