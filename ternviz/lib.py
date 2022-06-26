@@ -227,7 +227,7 @@ def movie(name, short_name="molecule", color="white", ffmpeg="ffmpeg"):
         os.getenv("CONDA_PREFIX"), "fonts", "open-fonts", "IBMPlexMono-Light.ttf"
     )
     subprocess.run(
-        f"{ffmpeg} -framerate 30 -f image2 -i /var/tmp/{name}.%04d.bmp -c:v h264 -crf 9 "
+        f"{ffmpeg} -framerate 30 -y -f image2 -i /var/tmp/{name}.%04d.bmp -c:v h264 -crf 9 "
         "-c:v libx264 -movflags +faststart -filter_complex "
         f"\"[0:v]drawtext=text='{short_name}':fontsize=48:x=(w-text_w)/2:y=(2*text_h):fontcolor={color}:fontfile={font_path}[c];"
         "[c]eq=saturation=0.8[d];"
@@ -243,6 +243,16 @@ def multiplex(videos, name, ffmpeg="ffmpeg"):
     out = os.path.join("/var/tmp", f"{name}.mp4")
     os.system(
         f"{ffmpeg} -i {videos[0]} -i {videos[1]} -filter_complex hstack=inputs=2 {out} > /dev/null"
+    )
+    return out
+
+
+def concat(videos, name, ffmpeg="ffmpeg"):
+    assert len(videos) == 2
+    out = os.path.join("/var/tmp", f"{name}.mp4")
+    os.system(
+        f'{ffmpeg} -i {videos[0]} -i {videos[1]} -y -filter_complex "[0:v] [1:v]  \
+concat" {out} > /dev/null'
     )
     return out
 

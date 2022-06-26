@@ -1,0 +1,29 @@
+color change rgb 8 0.9607843137254902 0.9568627450980393 0.9137254901960784
+# red to 240, 96, 96
+color change rgb 1 [expr 240.0 / 255] [expr 96 / 255.] [expr 96 / 255.]
+mol modstyle 0 0 VDW 0.300000 20.000000
+mol modmaterial 0 0 AOChalky
+mol modcolor 0 0 Element
+color Element C red
+axes location Off
+display shadows on
+display ambientocclusion on
+display resize 1200 900
+color Display Background BACKGROUND
+set n [molinfo top get numframes]
+# smooth it by 1
+#mol smoothrep 0 0 1
+# set camera to end
+animate goto $n
+display resetview
+set dt [expr $n / 360]
+for {set i 0} {$i < 360} {incr i 1} {
+	# force the update
+	display update
+	# and take the picture
+	render TachyonInternal [format "%s/__ID__.%04d.bmp" "/var/tmp" $i]
+	#rotate
+	rotate y by 1.0
+	animate goto [expr $dt * $i]
+}
+exit
