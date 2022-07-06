@@ -64,9 +64,8 @@ def main(smiles, names, vmd, ffmpeg, low_quality):
 @click.option("--color", default="black")
 @click.option("--name", default=None)
 @click.option("--ffmpeg", default="ffmpeg")
-@click.option("--width", default=800)
 @click.option("--name", default=None)
-def pdb_main(pdb_query, vmd, color, ffmpeg, name, frames=60):
+def pdb_main(pdb_query, vmd, color, ffmpeg, name, frames=600):
     multi = False
     if len(pdb_query) == 1:
         pdb_query = pdb_query[0]

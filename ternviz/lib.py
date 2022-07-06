@@ -270,8 +270,8 @@ def align(ref, *args):
             alignment = align.AlignTraj(
                 p,
                 ref,
-                select="backbone",
-                weights=p.select_atoms("backbone").bfactors / 100,
+                select="segid B",
+                #weights=p.select_atoms("backbone").bfactors / 100,
                 filename=out_f,
             )
             alignment.run()
