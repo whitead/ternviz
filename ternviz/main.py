@@ -94,7 +94,7 @@ def sdf_main(sdf, name, vmd, ffmpeg, low_quality):
 @click.option("--name", default=None)
 @click.option("--ffmpeg", default="ffmpeg")
 @click.option("--name", default=None)
-def pdb_main(pdb_query, vmd, color, ffmpeg, name, frames=60):
+def pdb_main(pdb_query, vmd, color, ffmpeg, name, frames=600):
     multi = False
     if len(pdb_query) == 1:
         pdb_query = pdb_query[0]
