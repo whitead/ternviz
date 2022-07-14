@@ -1,4 +1,5 @@
 import click
+from rdkit import Chem
 import os
 from .lib import (
     gen_coords,
@@ -9,6 +10,7 @@ from .lib import (
     multiplex,
     get_pdb,
     align,
+    sdf2pdb,
 )
 
 
@@ -59,12 +61,38 @@ def main(smiles, names, vmd, ffmpeg, low_quality):
 
 
 @click.command()
+@click.argument("sdf", type=click.Path(exists=True))
+@click.option("--name", default=None)
+@click.option("--vmd", default="vmd")
+@click.option("--ffmpeg", default="ffmpeg")
+@click.option("--low-quality", is_flag=True, default=False)
+def sdf_main(sdf, name, vmd, ffmpeg, low_quality):
+    if name is None:
+        id = "sdf"
+    else:
+        id = os.path.basename(sdf)
+    p = sdf2pdb(sdf)
+    render(
+        p.name,
+        800,
+        id=id,
+        vmd=vmd,
+        color="white",
+        script_name="render-lq.vmd" if low_quality else "render.vmd",
+    )
+    print("Making Movie for", id)
+    m = movie(id, ffmpeg=ffmpeg, short_name=name, color="black")
+    p.close()
+    os.unlink(p.name)
+    return m
+
+
+@click.command()
 @click.argument("pdb-query", nargs=-1)
 @click.option("--vmd", default="vmd")
 @click.option("--color", default="black")
 @click.option("--name", default=None)
 @click.option("--ffmpeg", default="ffmpeg")
-@click.option("--width", default=800)
 @click.option("--name", default=None)
 def pdb_main(pdb_query, vmd, color, ffmpeg, name, frames=60):
     multi = False

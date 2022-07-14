@@ -30,6 +30,7 @@ setup(
         [console_scripts]
         ternviz=ternviz.main:main
         ternviz-pdb=ternviz.main:pdb_main
+        ternviz-sdf=ternviz.main:sdf_main
         ternviz-bot=ternviz.bot:bot
         ternviz-align=ternviz.main:align_cmd
             """,

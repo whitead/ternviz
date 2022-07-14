@@ -19,6 +19,13 @@ def canonicalize(smiles):
     return smiles
 
 
+def sdf2pdb(sdf_path):
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".pdb")
+    m = Chem.MolFromMolFile(sdf_path)
+    Chem.MolToPDBFile(m, tmp.name)
+    return tmp
+
+
 def check_smiles(s):
     sio = sys.stderr = StringIO()
     Chem.MolFromSmiles(s)
