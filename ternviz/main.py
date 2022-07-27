@@ -65,16 +65,25 @@ def main(smiles, names, vmd, ffmpeg, low_quality):
 @click.option("--name", default=None)
 @click.option("--ffmpeg", default="ffmpeg")
 @click.option("--name", default=None)
-def pdb_main(pdb_query, vmd, color, ffmpeg, name, frames=600):
+def pdb_main(pdb_query, vmd, color, ffmpeg, name, frames=None):
     multi = False
     if len(pdb_query) == 1:
         pdb_query = pdb_query[0]
-        pdb_id, p = get_pdb(pdb_query)
+        # check if it's an actual file
+        if not os.path.isfile(pdb_query):
+            pdb_id, p = get_pdb(pdb_query)
+        else:
+            pdb_id = "pdb"
+            p = open(pdb_query, "r")
         path = p.name
+        if frames is None:
+            frames = 360
     else:
         pdb_id = str(1)
         multi = True
         path = pdb_query
+        if frames is None:
+            frames = 600
     if not pdb_id:
         raise ValueError("Failed to find pdb")
 
@@ -99,7 +108,7 @@ def pdb_main(pdb_query, vmd, color, ffmpeg, name, frames=600):
             vmd=vmd,
             script_name="render-pdb.vmd",
             color=color,
-            args=["0", "frames"],
+            args=["0", str(frames)],
         )
     print("Making Movie for", pdb_id)
     if not multi:
