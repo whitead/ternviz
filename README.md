@@ -56,7 +56,7 @@ You can pass in multiple PDBs
 ternviz-pdb my.pdb other.pdb
 ```
 
-You can specify how secondary structure is rendered and other details
+You can specify how the structure is colored and other details
 
 ```sh
 ternviz-pdb 1A1L --frames 60 --color white --scolor Chain
