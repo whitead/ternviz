@@ -18,8 +18,9 @@ from .lib import (
 @click.option("--names", default=None, help="comma separated names")
 @click.option("--vmd", default="vmd")
 @click.option("--ffmpeg", default="ffmpeg")
+@click.option("--color", default="black")
 @click.option("--low-quality", is_flag=True, default=False)
-def main(smiles, names, vmd, ffmpeg, low_quality):
+def main(smiles, names, vmd, ffmpeg, low_quality, color):
     if len(smiles) == 0:
         return
     if type(smiles) == str:
@@ -46,16 +47,23 @@ def main(smiles, names, vmd, ffmpeg, low_quality):
             width,
             id=n,
             vmd=vmd,
+            color=color,
             script_name="render-lq.vmd" if low_quality else "render.vmd",
         )
         print("Making Movie for", s)
-        m = movie(n, ffmpeg=ffmpeg, short_name=n)
+        m = movie(
+            n,
+            ffmpeg=ffmpeg,
+            short_name=n,
+            color="black" if color == "white" else "white",
+        )
         movies.append(m)
         p.close()
         os.unlink(p.name)
     if len(movies) == 2:
         return multiplex(movies, "out")
 
+    os.rename(movies[0], f"{n}.mp4")
     return movies[0]
 
 
@@ -116,7 +124,7 @@ def pdb_main(pdb_query, vmd, color, ffmpeg, name, scolor, frames=None):
     if not multi:
         p.close()
     if frames == 1:
-        m = os.rename(f'/var/tmp/{pdb_id}.0000.bmp', f'{pdb_id}.bmp')
+        m = os.rename(f"/var/tmp/{pdb_id}.0000.bmp", f"{pdb_id}.bmp")
     else:
         print("Making Movie for", pdb_id)
         m = movie(
@@ -125,12 +133,13 @@ def pdb_main(pdb_query, vmd, color, ffmpeg, name, scolor, frames=None):
             short_name=name if name else pdb_id,
             color="black" if color == "white" else "white",
         )
+        m = os.rename(m, f"{name if name else pdb_id}.mp4")
     return m
 
 
 @click.command()
 @click.argument("ref")
-@click.option("--sel", default='protein', help='Atom selection')
+@click.option("--sel", default="protein", help="Atom selection")
 @click.argument("aligns", nargs=-1)
 def align_cmd(ref, sel, aligns):
     align(ref, sel, *aligns)
