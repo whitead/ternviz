@@ -196,7 +196,7 @@ def render(
 
 
 def get_pdb(query_string, name=None):
-    url = "https://search.rcsb.org/rcsbsearch/v1/query?json={search-request}"
+    url = "https://search.rcsb.org/rcsbsearch/v2/query?json={search-request}"
     query = {
         "query": {
             "type": "terminal",
@@ -257,7 +257,7 @@ concat" {out} > /dev/null'
     return out
 
 
-def align(ref, *args):
+def align(ref, sel, *args):
     import MDAnalysis
     from MDAnalysis.analysis import align
 
@@ -270,7 +270,7 @@ def align(ref, *args):
             alignment = align.AlignTraj(
                 p,
                 ref,
-                select="segid B",
+                select=sel,
                 #weights=p.select_atoms("backbone").bfactors / 100,
                 filename=out_f,
             )

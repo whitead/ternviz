@@ -1,3 +1,4 @@
+from pydoc import cli
 import click
 import os
 from .lib import (
@@ -62,10 +63,12 @@ def main(smiles, names, vmd, ffmpeg, low_quality):
 @click.argument("pdb-query", nargs=-1)
 @click.option("--vmd", default="vmd")
 @click.option("--color", default="black")
+@click.option("--scolor", default="Chain")
 @click.option("--name", default=None)
 @click.option("--ffmpeg", default="ffmpeg")
 @click.option("--name", default=None)
-def pdb_main(pdb_query, vmd, color, ffmpeg, name, frames=None):
+@click.option("--frames", default=None)
+def pdb_main(pdb_query, vmd, color, ffmpeg, name, scolor, frames=None):
     multi = False
     if len(pdb_query) == 1:
         pdb_query = pdb_query[0]
@@ -77,7 +80,7 @@ def pdb_main(pdb_query, vmd, color, ffmpeg, name, frames=None):
             p = open(pdb_query, "r")
         path = p.name
         if frames is None:
-            frames = 360
+            frames = 1
     else:
         pdb_id = str(1)
         multi = True
@@ -98,7 +101,7 @@ def pdb_main(pdb_query, vmd, color, ffmpeg, name, frames=None):
                 vmd=vmd,
                 script_name="render-pdb.vmd",
                 color=color,
-                args=[str(i * frames // N), str((i + 1) * frames // N)],
+                args=[str(i * frames // N), str((i + 1) * frames // N), scolor],
             )
     else:
         render(
@@ -108,22 +111,26 @@ def pdb_main(pdb_query, vmd, color, ffmpeg, name, frames=None):
             vmd=vmd,
             script_name="render-pdb.vmd",
             color=color,
-            args=["0", str(frames)],
+            args=["0", str(frames), scolor],
         )
-    print("Making Movie for", pdb_id)
     if not multi:
         p.close()
-    m = movie(
-        pdb_id,
-        ffmpeg=ffmpeg,
-        short_name=name if name else pdb_id,
-        color="black" if color == "white" else "white",
-    )
+    if frames == 1:
+        m = os.rename(f'/var/tmp/{pdb_id}.0000.bmp', f'{pdb_id}.bmp')
+    else:
+        print("Making Movie for", pdb_id)
+        m = movie(
+            pdb_id,
+            ffmpeg=ffmpeg,
+            short_name=name if name else pdb_id,
+            color="black" if color == "white" else "white",
+        )
     return m
 
 
 @click.command()
 @click.argument("ref")
+@click.option("--sel", default='protein', help='Atom selection')
 @click.argument("aligns", nargs=-1)
-def align_cmd(ref, aligns):
-    align(ref, *aligns)
+def align_cmd(ref, sel, aligns):
+    align(ref, sel, *aligns)

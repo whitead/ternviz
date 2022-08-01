@@ -4,12 +4,12 @@ set protein [atomselect top "all"]
 set natoms [$protein num]
 if {$natoms < 25000} {
 	mol modstyle 0 0 NewCartoon 0.300000 10.000000 4.100000 0
-	mol modcolor 0 0 Structure
+	mol modcolor 0 0 [lindex $argv 2]
 	display shadows on
 	display resize WIDTH 600
 } else {
 	mol modstyle 0 0 VDW 1.000000 12.000000
-	mol modcolor 0 0 Chain
+	mol modcolor 0 0 [lindex $argv 2]
 	set width [expr WIDTH * 2]
 	display resize $width 1200
 }
