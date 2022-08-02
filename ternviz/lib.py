@@ -10,6 +10,7 @@ import subprocess
 from rdkit.Chem import AllChem
 from rdkit.DataStructs.cDataStructs import TanimotoSimilarity
 import urllib.request
+from PIL import Image
 
 Chem.WrapLogs()
 
@@ -260,6 +261,10 @@ concat" {out} > /dev/null'
     )
     return out
 
+
+def bmp2png(bmp_path, png_path):
+    im = Image.open(bmp_path)
+    im.save(png_path, "png")
 
 def align(ref, sel, *args):
     import MDAnalysis
