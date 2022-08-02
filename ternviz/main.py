@@ -80,7 +80,7 @@ def main(smiles, names, vmd, ffmpeg, low_quality, color):
 @click.option("--frames", default=None)
 def pdb_main(pdb_query, vmd, color, ffmpeg, name, scolor, frames=None):
     multi = False
-    rot_i = 1.
+    rot_i = 1.0
     if len(pdb_query) == 1:
         pdb_query = pdb_query[0]
         # check if it's an actual file
@@ -93,7 +93,7 @@ def pdb_main(pdb_query, vmd, color, ffmpeg, name, scolor, frames=None):
         if frames is None:
             frames = 1
         else:
-            rot_i = 360. / int(frames)
+            rot_i = 360.0 / int(frames)
     else:
         pdb_id = str(1)
         multi = True
@@ -114,7 +114,12 @@ def pdb_main(pdb_query, vmd, color, ffmpeg, name, scolor, frames=None):
                 vmd=vmd,
                 script_name="render-pdb.vmd",
                 color=color,
-                args=[str(i * frames // N), str((i + 1) * frames // N), str(rot_i), scolor],
+                args=[
+                    str(i * frames // N),
+                    str((i + 1) * frames // N),
+                    str(rot_i),
+                    scolor,
+                ],
             )
     else:
         render(

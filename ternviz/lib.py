@@ -266,6 +266,7 @@ def bmp2png(bmp_path, png_path):
     im = Image.open(bmp_path)
     im.save(png_path, "png")
 
+
 def align(ref, sel, *args):
     import MDAnalysis
     from MDAnalysis.analysis import align
