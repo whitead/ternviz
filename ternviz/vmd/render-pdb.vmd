@@ -21,7 +21,7 @@ color Name C gray
 axes location Off
 display ambientocclusion on
 display resetview
-display scale 1.4
+scale by 1.4
 rotate x by -90.0
 rotate y by $start_i
 for {set i $start_i} {$i < $end_i} {incr i 1} {

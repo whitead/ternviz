@@ -134,7 +134,7 @@ def pdb_main(pdb_query, vmd, color, ffmpeg, name, scolor, frames=None):
     if not multi:
         p.close()
     if frames == 1:
-        m = bmp2png(f"/var/tmp/{pdb_id}.0000.bmp", f"{pdb_id}.bmp")
+        m = bmp2png(f"/var/tmp/{pdb_id}.0000.bmp", f"{pdb_id}.png")
     else:
         print("Making Movie for", pdb_id)
         m = movie(
