@@ -9,6 +9,8 @@ import requests
 import subprocess
 from rdkit.Chem import AllChem
 from rdkit.DataStructs.cDataStructs import TanimotoSimilarity
+import urllib.request
+from PIL import Image
 
 Chem.WrapLogs()
 
@@ -203,7 +205,7 @@ def render(
 
 
 def get_pdb(query_string, name=None):
-    url = "https://search.rcsb.org/rcsbsearch/v1/query?json={search-request}"
+    url = "https://search.rcsb.org/rcsbsearch/v2/query?json={search-request}"
     query = {
         "query": {
             "type": "terminal",
@@ -230,9 +232,12 @@ def get_pdb(query_string, name=None):
 
 def movie(name, short_name="molecule", color="white", ffmpeg="ffmpeg"):
     out = os.path.join("/var/tmp", f"{name}.mp4")
-    font_path = os.path.join(
-        os.getenv("CONDA_PREFIX"), "fonts", "open-fonts", "IBMPlexMono-Light.ttf"
-    )
+    font_path = os.path.join("/var/tmp", "CourierPrime-Regular.ttf")
+    if not os.path.exists(font_path):
+        urllib.request.urlretrieve(
+            "https://github.com/google/fonts/raw/main/ofl/courierprime/CourierPrime-Regular.ttf",
+            font_path,
+        )
     subprocess.run(
         f"{ffmpeg} -framerate 30 -y -f image2 -i /var/tmp/{name}.%04d.bmp -c:v h264 -crf 9 "
         "-c:v libx264 -movflags +faststart -filter_complex "
@@ -264,7 +269,12 @@ concat" {out} > /dev/null'
     return out
 
 
-def align(ref, *args):
+def bmp2png(bmp_path, png_path):
+    im = Image.open(bmp_path)
+    im.save(png_path, "png")
+
+
+def align(ref, sel, *args):
     import MDAnalysis
     from MDAnalysis.analysis import align
 
@@ -277,8 +287,8 @@ def align(ref, *args):
             alignment = align.AlignTraj(
                 p,
                 ref,
-                select="segid B",
-                #weights=p.select_atoms("backbone").bfactors / 100,
+                select=sel,
+                # weights=p.select_atoms("backbone").bfactors / 100,
                 filename=out_f,
             )
             alignment.run()

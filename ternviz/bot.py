@@ -222,7 +222,7 @@ def bot(user):
                 return
             print("Completed Rendering")
             media = api.media_upload(movie, media_category="tweet_video")
-            duration = (time.time_ns() - start) / (10 ** 9)
+            duration = (time.time_ns() - start) / (10**9)
             try:
                 api.update_status(
                     status=f"Rendered {short_name} in {duration:.2f} seconds.",

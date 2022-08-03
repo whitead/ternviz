@@ -1,15 +1,16 @@
 set start_i [lindex $argv 0]
 set end_i [lindex $argv 1]
+set incr_i [ lindex $argv 2 ]
 set protein [atomselect top "all"]
 set natoms [$protein num]
 if {$natoms < 25000} {
 	mol modstyle 0 0 NewCartoon 0.300000 10.000000 4.100000 0
-	mol modcolor 0 0 Chain
+	mol modcolor 0 0 [lindex $argv 3]
 	display shadows on
 	display resize WIDTH 600
 } else {
 	mol modstyle 0 0 VDW 1.000000 12.000000
-	mol modcolor 0 0 Chain
+	mol modcolor 0 0 [lindex $argv 3]
 	set width [expr WIDTH * 2]
 	display resize $width 1200
 }
@@ -20,7 +21,7 @@ color Name C gray
 axes location Off
 display ambientocclusion on
 display resetview
-display scale 1.4
+scale by 1.4
 rotate x by -90.0
 rotate y by $start_i
 for {set i $start_i} {$i < $end_i} {incr i 1} {
@@ -29,6 +30,6 @@ for {set i $start_i} {$i < $end_i} {incr i 1} {
 	# and take the picture
 	render TachyonInternal [format "%s/__ID__.%04d.bmp" "/var/tmp" $i]
 	#rotate
-	rotate y by 1.0
+	rotate y by $incr_i
 }
 exit

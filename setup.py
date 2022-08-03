@@ -19,12 +19,11 @@ setup(
     install_requires=[
         "click",
         "rdkit-pypi",
-        "tweepy",
-        "python-dotenv",
         "requests",
         "importlib_resources",
         "MDAnalysis",
     ],
+    extras_require={"bot": ["tweepy", "python-dotenv"]},
     zip_safe=True,
     entry_points="""
         [console_scripts]
