@@ -73,7 +73,7 @@ def main(smiles, names, vmd, ffmpeg, low_quality, color):
 @click.argument("pdb-query", nargs=-1)
 @click.option("--vmd", default="vmd")
 @click.option("--color", default="black")
-@click.option("--scolor", default="Chain")
+@click.option("--scolor", default="Structure")
 @click.option("--name", default=None)
 @click.option("--ffmpeg", default="ffmpeg")
 @click.option("--name", default=None)
