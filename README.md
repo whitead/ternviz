@@ -73,7 +73,7 @@ ternviz-align ref.pdb *.pdb
 by default it aligns on the protein. You can also change selection string, using [MDAnalysis Selection String Syntax](https://docs.mdanalysis.org/stable/documentation_pages/selections.html)
 
 ```sh
-ternviz-align ref.pdb --sel "chain B" *.pdb
+ternviz-align ref.pdb --sel "chainid B" *.pdb
 ```
 ## Example Render
 
