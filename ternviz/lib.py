@@ -215,7 +215,6 @@ def get_pdb(query_string, name=None):
     r = requests.post(url, json=query)
     if "result_set" in r.json() and len(r.json()["result_set"]) > 0:
         pdbid = r.json()["result_set"][0]["identifier"]
-        print(pdbid)
         url = f"https://files.rcsb.org/download/{pdbid}.cif"
         pdb = requests.get(url)
         if name is None:
@@ -223,7 +222,6 @@ def get_pdb(query_string, name=None):
         else:
             tmp = open(os.path.join("/var/tmp", name + ".cif"), "wb")
         tmp.write(pdb.text.encode())
-        print(tmp.name)
         return pdbid, tmp
     return None, None
 
