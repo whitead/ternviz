@@ -12,8 +12,6 @@ from rdkit.DataStructs.cDataStructs import TanimotoSimilarity
 import urllib.request
 from PIL import Image
 
-Chem.WrapLogs()
-
 
 def canonicalize(smiles):
     mol = Chem.MolFromSmiles(smiles, sanitize=True)
