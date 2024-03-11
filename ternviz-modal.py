@@ -3,6 +3,7 @@ from fastapi import FastAPI, status, UploadFile, HTTPException, Depends
 from fastapi.responses import Response
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import os
+import uuid
 
 VMD_URL = "https://storage.googleapis.com/fh-modal-artifacts/vmd-1.9.4a55.bin.LINUXAMD64-CUDA102-OptiX650-OSPRay185-RTXRTRT.opengl.tar.gz"
 stub = Stub("ternviz-pdb")
@@ -18,9 +19,6 @@ image = (
     .run_commands(f"wget {VMD_URL} -O /tmp/vmd.tar.gz && tar -xvf /tmp/vmd.tar.gz -C /tmp")
     .run_commands("cd /tmp/vmd-* && ./configure && cd src && make install && hash")
 )
-
-fastapi_image =  Image.debian_slim(python_version="3.11").pip_install("fastapi", "uvicorn", "python-multipart")
-
 
 with image.imports():
     import ternviz
@@ -51,7 +49,7 @@ def render(pdb_id: str, pdb_file: str, start: int, stop: int):
     vol.commit()
     return True
 
-@stub.function(cpu=4, image=image, volumes=volume_map)
+@stub.function(cpu=8, image=image, volumes=volume_map)
 def movie(name: str, pdb_id: str):
     vol.reload()
     m = ternviz.movie(
@@ -68,8 +66,8 @@ def movie(name: str, pdb_id: str):
     vol.commit()
     return result
 
-@web_app.post("/render/{name}")
-async def foo(pdb_file: UploadFile, name: str,  token: HTTPAuthorizationCredentials = Depends(auth_scheme)):
+@web_app.post("/render/")
+async def foo(pdb_file: UploadFile, message: str = "",  token: HTTPAuthorizationCredentials = Depends(auth_scheme)):
     if token.credentials != os.environ["AUTH_TOKEN"]:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -78,22 +76,19 @@ async def foo(pdb_file: UploadFile, name: str,  token: HTTPAuthorizationCredenti
         )
     
     frames = 360
-
-    # check name doesn't require escaping on path
-    if name != os.path.basename(name) or " " in name:
-        raise HTTPException(status_code=400, detail="Invalid name")
+    job_id = str(uuid.uuid4()).split("-")[0]
 
     contents = await pdb_file.read()
 
     def _render_gen():
         for i in range(0, frames, 20):
-            yield name, contents, i, i + 20
+            yield job_id, contents, i, i + 20
     
     # render map takes a generator
     _ = list(render.starmap(_render_gen()))
 
-    blob = movie.remote(name, name)
-    return Response(content=blob, media_type="media/mp4", headers={"Content-Disposition": f"attachment; filename={name}.mp4"})
+    blob = movie.remote(message, job_id)
+    return Response(content=blob, media_type="media/mp4", headers={"Content-Disposition": f"attachment; filename=ternviz.mp4"})
 
     
 @stub.function(secrets=[Secret.from_name("web-auth-token")])
