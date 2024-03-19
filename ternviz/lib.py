@@ -235,7 +235,7 @@ def movie(name, short_name="molecule", color="white", ffmpeg="ffmpeg"):
             font_path,
         )
     subprocess.run(
-        f"{ffmpeg} -framerate 30 -y -f image2 -i /var/tmp/{name}.%04d.bmp -c:v h264 -crf 9 "
+        f"{ffmpeg} -framerate 30 -y -f image2 -i /var/tmp/{name}.%04d.bmp -c:v h264 -crf 20 "
         "-c:v libx264 -movflags +faststart -filter_complex "
         f"\"[0:v]drawtext=text='{short_name}':fontsize=48:x=(w-text_w)/2:y=(2*text_h):fontcolor={color}:fontfile={font_path}[c];"
         "[c]eq=saturation=0.8[d];"
