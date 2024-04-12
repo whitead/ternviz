@@ -11,8 +11,7 @@ if {$natoms < 25000} {
 } else {
 	mol modstyle 0 0 VDW 1.000000 12.000000
 	mol modcolor 0 0 [lindex $argv 3]
-	set width [expr WIDTH * 2]
-	display resize $width 1200
+	display resize WIDTH 600
 }
 mol modmaterial 0 0 AOChalky
 color Structure Alpha Helix mauve

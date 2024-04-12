@@ -34,11 +34,11 @@ def get_pdb(pdb_query: str):
 
 
 @stub.function(cpu=8, image=image, volumes=volume_map)
-def render(pdb_id: str, pdb_file: str, start: int, stop: int):
-    with open("/tmp/pdb.cif", "wb") as f:
+def pdb_render(pdb_id: str, pdb_file: str, start: int, stop: int):
+    with open("/tmp/pdb.pdb", "wb") as f:
         f.write(pdb_file)
     ternviz.render(
-        "/tmp/pdb.cif",
+        "/tmp/pdb.pdb",
         800,
         id=pdb_id,
         vmd="/usr/local/bin/vmd",
@@ -67,7 +67,7 @@ def movie(name: str, pdb_id: str):
     return result
 
 @web_app.post("/render/")
-async def foo(pdb_file: UploadFile, message: str = "",  token: HTTPAuthorizationCredentials = Depends(auth_scheme)):
+async def render(pdb_file: UploadFile, message: str = "",  token: HTTPAuthorizationCredentials = Depends(auth_scheme)):
     if token.credentials != os.environ["AUTH_TOKEN"]:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -85,13 +85,13 @@ async def foo(pdb_file: UploadFile, message: str = "",  token: HTTPAuthorization
             yield job_id, contents, i, i + 20
     
     # render map takes a generator
-    _ = list(render.starmap(_render_gen()))
+    _ = list(pdb_render.starmap(_render_gen()))
 
     blob = movie.remote(message, job_id)
     return Response(content=blob, media_type="media/mp4", headers={"Content-Disposition": f"attachment; filename=ternviz.mp4"})
 
     
 @stub.function(secrets=[Secret.from_name("web-auth-token")])
-@asgi_app()
+@asgi_app(custom_domains=["viz.proteincrow.ai"])
 def app():
     return web_app
