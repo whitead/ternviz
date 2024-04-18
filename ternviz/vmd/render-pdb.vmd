@@ -22,7 +22,7 @@ display ambientocclusion on
 
 # make the colors not so saturated
 color change rgb 0 [expr 96 / 255.] [expr 96 / 255.] [expr 240.0 / 255] # blue
-color change rgb 1 [expr 240.0 / 255] [expr 96 / 255.] [expr 96 / 255.] # red
+color change rgb 1 [expr 240.0 / 255] [expr 96 / 255.] [expr 255 / 255.] # red
 color change rgb 16 [expr 31.875 / 255] [expr 31.875 / 255] [expr 31.875 / 255] # black -> #222
 
 # adjust the view only with chain A displayed
