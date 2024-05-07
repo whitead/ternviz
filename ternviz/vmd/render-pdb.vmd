@@ -25,11 +25,6 @@ color change rgb 0 [expr 96 / 255.] [expr 96 / 255.] [expr 240.0 / 255] # blue
 color change rgb 1 [expr 240.0 / 255] [expr 96 / 255.] [expr 255 / 255.] # red
 color change rgb 16 [expr 31.875 / 255] [expr 31.875 / 255] [expr 31.875 / 255] # black -> #222
 
-# adjust the view only with chain A displayed
-mol modselect 0 0 "chain A"
-display resetview
-# now change back
-mol modselect 0 0 "all"
 
 scale by 1.4
 rotate x by -90.0
