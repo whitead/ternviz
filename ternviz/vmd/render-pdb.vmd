@@ -7,12 +7,11 @@ if {$natoms < 25000} {
 	mol modstyle 0 0 NewCartoon 0.300000 10.000000 4.100000 0
 	mol modcolor 0 0 [lindex $argv 3]
 	display shadows on
-	display resize WIDTH 600
+	display resize 1024 768
 } else {
 	mol modstyle 0 0 VDW 1.000000 12.000000
 	mol modcolor 0 0 [lindex $argv 3]
-	set width [expr WIDTH * 2]
-	display resize $width 1200
+	display resize 800 600
 }
 mol modmaterial 0 0 AOChalky
 color Structure Alpha Helix mauve
@@ -20,7 +19,13 @@ color Display Background BACKGROUND
 color Name C gray
 axes location Off
 display ambientocclusion on
-display resetview
+
+# make the colors not so saturated
+color change rgb 0 [expr 96 / 255.] [expr 96 / 255.] [expr 240.0 / 255] # blue
+color change rgb 1 [expr 240.0 / 255] [expr 96 / 255.] [expr 255 / 255.] # red
+color change rgb 16 [expr 31.875 / 255] [expr 31.875 / 255] [expr 31.875 / 255] # black -> #222
+
+
 scale by 1.4
 rotate x by -90.0
 rotate y by $start_i
