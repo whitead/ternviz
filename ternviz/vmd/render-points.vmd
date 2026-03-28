@@ -10,6 +10,7 @@ display shadows on
 display ambientocclusion on
 display resize 1200 900
 color Display Background BACKGROUND
+render format RENDERER RENDER_FORMAT
 set n [molinfo top get numframes]
 # smooth it by 1
 #mol smoothrep 0 0 1
@@ -21,7 +22,7 @@ for {set i 0} {$i < 360} {incr i 1} {
 	# force the update
 	display update
 	# and take the picture
-	render TachyonInternal [format "%s/__ID__.%04d.bmp" "/var/tmp" $i]
+	render RENDERER [format "%s/__ID__.%04d.FRAME_EXT" "FRAME_DIR" $i]
 	#rotate
 	rotate y by 1.0
 	animate goto [expr $dt * $i]

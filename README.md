@@ -45,6 +45,55 @@ uv run ternviz CO --vmd /Applications/VMD2b1.app
 uv run ternviz CO --vmd /Applications/VMD2b1.app/Contents/vmd2b1/vmd_MACOSXARM64
 ```
 
+## Deploy To Modal
+
+The Modal deployment lives in `ternviz-modal.py`.
+
+Even if you deploy from a Mac, the Modal image needs the Linux VMD archive, not
+the macOS app bundle. Point `TERNVIZ_VMD_ARCHIVE_PATH` at a local copy of
+`vmd-2.0.0.bin.LINUXAMD64.tar` before deploying. If you leave it unset,
+`ternviz-modal.py` will look for `~/Downloads/vmd-2.0.0.bin.LINUXAMD64.tar`.
+
+If you have not configured Modal on this machine yet:
+
+```sh
+uv run python -m modal setup
+```
+
+Create the bearer-token secret used by the FastAPI endpoint:
+
+```sh
+uv run python -m modal secret create web-auth-token AUTH_TOKEN=replace-with-a-random-token
+```
+
+Deploy the app:
+
+```sh
+export TERNVIZ_VMD_ARCHIVE_PATH=/absolute/path/to/vmd-2.0.0.bin.LINUXAMD64.tar
+uv run python -m modal deploy ternviz-modal.py
+```
+
+Notes:
+
+- The first deploy is relatively slow because Modal uploads the VMD tarball,
+  installs system packages, and builds VMD inside the image.
+- The render function requests an `L4` GPU and uses VMD 2's
+  `TachyonLOptiXInternal` renderer.
+- The deploy output prints the app URL. The render endpoint is `POST /render/`.
+
+Example smoke test with a real PDB:
+
+```sh
+curl -X POST "https://<your-modal-url>/render/" \
+  -H "Authorization: Bearer $AUTH_TOKEN" \
+  -F "pdb_file=@/tmp/1CRN.pdb" \
+  -F "message=1CRN" \
+  -F "target_total_frames=60" \
+  -o ternviz.mp4
+```
+
+The endpoint accepts `.pdb`, `.gz`, `.tar`, and `.tar.gz` uploads.
+
 You can modify a few things too:
 
 ```sh

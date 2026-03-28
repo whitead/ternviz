@@ -1,5 +1,13 @@
 import ternviz
-from ternviz.lib import _macos_vmd_env, resolve_vmd, vmd_script
+import ternviz.lib as ternviz_lib
+from ternviz.lib import (
+    _macos_vmd_env,
+    _resolve_movie_font_path,
+    first_frame,
+    frame_pattern,
+    resolve_vmd,
+    vmd_script,
+)
 
 
 def test_ternviz():
@@ -58,3 +66,51 @@ def test_vmd_script_can_strip_display_resize():
     )
 
     assert all("display resize" not in line for line in script)
+
+
+def test_vmd_script_replaces_renderer_placeholders():
+    script = "".join(
+        vmd_script(
+            800,
+            "sample",
+            script_name="render.vmd",
+            renderer="TachyonLOptiXInternal",
+            render_format="PPM",
+            frame_ext="ppm",
+        )
+    )
+
+    assert "render format TachyonLOptiXInternal PPM" in script
+    assert "render TachyonLOptiXInternal" in script
+    assert ".%04d.ppm" in script
+
+
+def test_frame_helpers_accept_non_bmp_formats(tmp_path):
+    frame = tmp_path / "movie.0000.tga"
+    frame.touch()
+
+    assert first_frame("movie", frame_dir=tmp_path) == frame
+    assert frame_pattern("movie", frame_dir=tmp_path) == str(
+        tmp_path / "movie.%04d.tga"
+    )
+
+
+def test_resolve_movie_font_path_prefers_existing_system_font(monkeypatch, tmp_path):
+    original_exists = ternviz_lib.Path.exists
+
+    def fake_exists(path):
+        if str(path) == "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf":
+            return True
+        if str(path) in (
+            "/System/Library/Fonts/Menlo.ttc",
+            "/System/Library/Fonts/Supplemental/Courier New.ttf",
+        ):
+            return False
+        return original_exists(path)
+
+    monkeypatch.setattr(ternviz_lib.Path, "exists", fake_exists)
+
+    assert (
+        _resolve_movie_font_path(frame_dir=tmp_path)
+        == "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf"
+    )

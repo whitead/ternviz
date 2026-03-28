@@ -10,11 +10,12 @@ display ambientocclusion off
 display resetview
 display resize WIDTH 600
 color Display Background BACKGROUND
+render format RENDERER RENDER_FORMAT
 for {set i 0} {$i < 360} {incr i 1} {
 	# force the update
 	display update
 	# and take the picture
-	render TachyonInternal [format "%s/__ID__.%04d.bmp" "/var/tmp" $i]
+	render RENDERER [format "%s/__ID__.%04d.FRAME_EXT" "FRAME_DIR" $i]
 	#rotate
 	rotate y by 1.0
 }

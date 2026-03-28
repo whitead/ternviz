@@ -1,4 +1,5 @@
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -12,6 +13,8 @@ import requests
 from PIL import Image
 from rdkit import Chem
 from rdkit.Chem import AllChem
+
+FRAME_EXTENSIONS = ("bmp", "png", "ppm", "tga")
 
 
 def canonicalize(smiles):
@@ -52,7 +55,15 @@ def get_name(s):
 
 
 def vmd_script(
-    width, id, script_name="render.vmd", color="black", strip_display_resize=False
+    width,
+    id,
+    script_name="render.vmd",
+    color="black",
+    strip_display_resize=False,
+    renderer="TachyonInternal",
+    render_format="BMP",
+    frame_ext="bmp",
+    frame_dir="/var/tmp",
 ):
     fp = files("ternviz.vmd").joinpath(script_name)
     result = []
@@ -64,6 +75,10 @@ def vmd_script(
                 line.replace("WIDTH", str(width))
                 .replace("__ID__", id)
                 .replace("BACKGROUND", color)
+                .replace("RENDERER", renderer)
+                .replace("RENDER_FORMAT", render_format)
+                .replace("FRAME_EXT", frame_ext)
+                .replace("FRAME_DIR", frame_dir)
             )
     return result
 
@@ -249,9 +264,16 @@ def render(
     color="black",
     vmd="vmd",
     args=[],
+    renderer="TachyonInternal",
+    render_format="BMP",
+    frame_ext="bmp",
+    height=None,
+    frame_dir="/var/tmp",
 ):
     vmd_executable, vmd_env = resolve_vmd(vmd)
-    strip_display_resize = Path(vmd_executable).name.startswith("vmd_MACOSX")
+    # Batch renders always use `-dispdev text -size ...`, so `display resize`
+    # is redundant and can terminate VMD 2 scripts before rendering.
+    strip_display_resize = True
     script = tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".tcl")
     try:
         script.writelines(
@@ -261,13 +283,22 @@ def render(
                 script_name,
                 color=color,
                 strip_display_resize=strip_display_resize,
+                renderer=renderer,
+                render_format=render_format,
+                frame_ext=frame_ext,
+                frame_dir=frame_dir,
             )
         )
         script.close()
+        if height is None:
+            height = max(1, int(width * 0.75))
         command = [
             vmd_executable,
             "-dispdev",
             "text",
+            "-size",
+            str(width),
+            str(height),
             "-e",
             script.name,
             "-eofexit",
@@ -280,6 +311,48 @@ def render(
         subprocess.run(command, check=True, env=env)
     finally:
         os.unlink(script.name)
+
+
+def _frame_files(name, frame_dir="/var/tmp"):
+    frame_dir = Path(frame_dir)
+    pattern = re.compile(rf"^{re.escape(name)}\.\d{{4}}\.(?P<ext>[A-Za-z0-9]+)$")
+    frames = []
+    for candidate in sorted(frame_dir.iterdir()):
+        match = pattern.match(candidate.name)
+        if match and match.group("ext").lower() in FRAME_EXTENSIONS:
+            frames.append(candidate)
+    return frames
+
+
+def first_frame(name, frame_dir="/var/tmp"):
+    frames = _frame_files(name, frame_dir=frame_dir)
+    if not frames:
+        raise FileNotFoundError(f"No rendered frames found for {name!r} in {frame_dir}")
+    return frames[0]
+
+
+def frame_pattern(name, frame_dir="/var/tmp"):
+    first = first_frame(name, frame_dir=frame_dir)
+    suffix = first.suffix
+    return str(Path(frame_dir) / f"{name}.%04d{suffix}")
+
+
+def _resolve_movie_font_path(frame_dir="/var/tmp"):
+    for candidate in (
+        Path("/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf"),
+        Path("/System/Library/Fonts/Menlo.ttc"),
+        Path("/System/Library/Fonts/Supplemental/Courier New.ttf"),
+    ):
+        if candidate.exists():
+            return str(candidate)
+
+    font_path = Path(frame_dir) / "CourierPrime-Regular.ttf"
+    if not font_path.exists():
+        urllib.request.urlretrieve(
+            "https://github.com/google/fonts/raw/main/ofl/courierprime/CourierPrime-Regular.ttf",
+            font_path,
+        )
+    return str(font_path)
 
 
 def get_pdb(query_string, name=None):
@@ -308,20 +381,41 @@ def get_pdb(query_string, name=None):
 
 def movie(name, short_name="molecule", color="white", ffmpeg="ffmpeg"):
     out = os.path.join("/var/tmp", f"{name}.mp4")
-    font_path = os.path.join("/var/tmp", "CourierPrime-Regular.ttf")
-    if not os.path.exists(font_path):
-        urllib.request.urlretrieve(
-            "https://github.com/google/fonts/raw/main/ofl/courierprime/CourierPrime-Regular.ttf",
-            font_path,
-        )
-    subprocess.run(
-        f"{ffmpeg} -framerate 30 -y -f image2 -i /var/tmp/{name}.%04d.bmp -c:v h264 -crf 20 "
-        "-c:v libx264 -movflags +faststart -filter_complex "
-        f"\"[0:v]drawtext=text='{short_name}':fontsize=48:x=(w-text_w)/2:y=(2*text_h):fontcolor={color}:fontfile={font_path}[c];"
+    frame_input = frame_pattern(name)
+    font_path = _resolve_movie_font_path()
+    filter_complex = (
+        f"[0:v]drawtext=text='{short_name}':fontsize=48:x=(w-text_w)/2:"
+        f"y=(2*text_h):fontcolor={color}:fontfile={font_path}[c];"
         "[c]eq=saturation=0.8[d];"
-        '[d]format=yuv420p[out]" '
-        f'-map "[out]" {out} > /dev/null',
-        shell=True,
+        "[d]format=yuv420p[out]"
+    )
+    subprocess.run(
+        [
+            ffmpeg,
+            "-framerate",
+            "30",
+            "-y",
+            "-f",
+            "image2",
+            "-i",
+            frame_input,
+            "-c:v",
+            "libx264",
+            "-preset",
+            "veryfast",
+            "-crf",
+            "20",
+            "-movflags",
+            "+faststart",
+            "-filter_complex",
+            filter_complex,
+            "-map",
+            "[out]",
+            out,
+        ],
+        check=True,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
     )
     return out
 
