@@ -1,10 +1,12 @@
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
 import urllib.request
 from importlib.resources import files
 from io import BytesIO, StringIO
+from pathlib import Path
 
 import requests
 from PIL import Image
@@ -49,17 +51,80 @@ def get_name(s):
     return Chem.rdMolDescriptors.CalcMolFormula(Chem.MolFromSmiles(s))
 
 
-def vmd_script(width, id, script_name="render.vmd", color="black"):
+def vmd_script(
+    width, id, script_name="render.vmd", color="black", strip_display_resize=False
+):
     fp = files("ternviz.vmd").joinpath(script_name)
     result = []
     with fp.open("r") as f:
         for line in f.readlines():
+            if strip_display_resize and line.lstrip().startswith("display resize "):
+                continue
             result.append(
                 line.replace("WIDTH", str(width))
                 .replace("__ID__", id)
                 .replace("BACKGROUND", color)
             )
     return result
+
+
+def _find_vmd_bundle_binary(app_path):
+    contents_dir = app_path / "Contents"
+    binaries = sorted(contents_dir.glob("vmd*/vmd_*"))
+    return binaries[0] if binaries else None
+
+
+def _macos_vmd_env(vmd_path):
+    vmd_path = Path(vmd_path)
+    parts = vmd_path.parts
+    if ".app" not in vmd_path.as_posix() or "Contents" not in parts:
+        return {}
+    if not vmd_path.name.startswith("vmd_"):
+        return {}
+
+    vmddir = vmd_path.parent
+    arch = vmd_path.name.split("vmd_", 1)[1]
+    python_dir = vmddir / "scripts" / "python"
+    existing_pythonpath = os.environ.get("PYTHONPATH")
+    env = {
+        "VMDDIR": str(vmddir),
+        "TCL_LIBRARY": str(vmddir / "scripts" / "tcl"),
+        "PYTHONPATH": (
+            f"{python_dir}:{existing_pythonpath}"
+            if existing_pythonpath
+            else str(python_dir)
+        ),
+    }
+    for env_name, base_name in (
+        ("STRIDE_BIN", "stride"),
+        ("SURF_BIN", "surf"),
+        ("TACHYON_BIN", "tachyon"),
+    ):
+        candidate = vmddir / f"{base_name}_{arch}"
+        if candidate.exists():
+            env[env_name] = str(candidate)
+    return env
+
+
+def resolve_vmd(vmd):
+    candidate = Path(vmd).expanduser()
+    if candidate.is_dir() and candidate.suffix == ".app":
+        bundle_binary = _find_vmd_bundle_binary(candidate)
+        if bundle_binary is not None:
+            return str(bundle_binary), _macos_vmd_env(bundle_binary)
+    if candidate.exists():
+        return str(candidate), _macos_vmd_env(candidate)
+    if shutil.which(vmd):
+        return vmd, {}
+
+    if sys.platform == "darwin" and vmd == "vmd":
+        for pattern in ("VMD2*.app", "VMD*.app"):
+            for app_path in sorted(Path("/Applications").glob(pattern), reverse=True):
+                bundle_binary = _find_vmd_bundle_binary(app_path)
+                if bundle_binary is not None:
+                    return str(bundle_binary), _macos_vmd_env(bundle_binary)
+
+    return vmd, {}
 
 
 def find_template(smiles, count=10):
@@ -185,17 +250,36 @@ def render(
     vmd="vmd",
     args=[],
 ):
-    with tempfile.NamedTemporaryFile(delete=False) as script:
-        with open(script.name, "w") as f:
-            f.writelines(vmd_script(width, id, script_name, color=color))
-        if len(args) > 0:
-            arg_str = f"-args {' '.join(args)}"
-        else:
-            arg_str = ""
-        subprocess.run(
-            f"'{vmd}' -dispdev text  -eofexit '{pdb_path}' {arg_str} < '{script.name}'",
-            shell=True,
+    vmd_executable, vmd_env = resolve_vmd(vmd)
+    strip_display_resize = Path(vmd_executable).name.startswith("vmd_MACOSX")
+    script = tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".tcl")
+    try:
+        script.writelines(
+            vmd_script(
+                width,
+                id,
+                script_name,
+                color=color,
+                strip_display_resize=strip_display_resize,
+            )
         )
+        script.close()
+        command = [
+            vmd_executable,
+            "-dispdev",
+            "text",
+            "-e",
+            script.name,
+            "-eofexit",
+            pdb_path,
+        ]
+        if args:
+            command.extend(["-args", *args])
+        env = os.environ.copy()
+        env.update(vmd_env)
+        subprocess.run(command, check=True, env=env)
+    finally:
+        os.unlink(script.name)
 
 
 def get_pdb(query_string, name=None):

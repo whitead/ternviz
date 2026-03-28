@@ -37,6 +37,14 @@ You may need to specify the path to VMD or ffmpeg:
 uv run ternviz CO --vmd /path/to/vmd/executable
 ```
 
+On macOS, VMD 2 is often installed as an app bundle. `ternviz` can resolve either
+the app bundle itself or the nested executable:
+
+```sh
+uv run ternviz CO --vmd /Applications/VMD2b1.app
+uv run ternviz CO --vmd /Applications/VMD2b1.app/Contents/vmd2b1/vmd_MACOSXARM64
+```
+
 You can modify a few things too:
 
 ```sh
