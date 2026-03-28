@@ -1,11 +1,13 @@
-import tweepy
+import multiprocessing
+import os
+import time
+
 import click
+import tweepy
 from dotenv import load_dotenv
 from rdkit import Chem
-import os
+
 import ternviz
-import multiprocessing
-import time
 
 TIMEOUT_COORDS = 500
 TIMEOUT_RENDER = 5000
@@ -21,7 +23,7 @@ def coord_error(api, id, s):
 
 def render_error(api, id):
     api.update_status(
-        status=f"Was able to make coordinates, but rendering took too long 😢 It might be that @andrewwhite01 is broke and cannot afford enough server time🤏🏻",
+        status="Was able to make coordinates, but rendering took too long 😢 It might be that @andrewwhite01 is broke and cannot afford enough server time🤏🏻",
         in_reply_to_status_id=id,
         auto_populate_reply_metadata=True,
     )
@@ -132,7 +134,7 @@ def render(
             in_reply_to_status_id=status.id,
             auto_populate_reply_metadata=True,
         )
-    except tweepy.os.error.HTTPException as e:
+    except tweepy.os.error.HTTPException:
         return None, None
     movie = do_render(
         api,
@@ -188,7 +190,7 @@ def bot(user):
             if status.user.id == my_user_id:
                 print("Determined to be self-reply")
                 return
-            if text.startswith("rt @") == True:
+            if text.startswith("rt @"):
                 print("Determined to be RT")
                 return
             start = time.time_ns()
@@ -230,7 +232,7 @@ def bot(user):
                     in_reply_to_status_id=status.id,
                     auto_populate_reply_metadata=True,
                 )
-            except tweepy.os.error.HTTPException as e:
+            except tweepy.os.error.HTTPException:
                 return
 
     # Initialize instance of the subclass

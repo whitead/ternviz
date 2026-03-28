@@ -1,17 +1,15 @@
+import os
+import subprocess
 import sys
+import tempfile
+import urllib.request
+from importlib.resources import files
+from io import BytesIO, StringIO
+
+import requests
+from PIL import Image
 from rdkit import Chem
 from rdkit.Chem import AllChem
-import tempfile
-import os
-import sys
-from importlib.resources import files
-from io import StringIO, BytesIO
-import requests
-import subprocess
-from rdkit.Chem import AllChem
-from rdkit.DataStructs.cDataStructs import TanimotoSimilarity
-import urllib.request
-from PIL import Image
 
 
 def canonicalize(smiles):
@@ -46,7 +44,7 @@ def get_name(s):
         data = reply.json()
         if data["reference"] == "wikidata":
             return data["name"].replace(" ", "-")
-    except:
+    except Exception:
         pass
     return Chem.rdMolDescriptors.CalcMolFormula(Chem.MolFromSmiles(s))
 
@@ -80,7 +78,7 @@ def find_template(smiles, count=10):
         return None
     try:
         data = reply.json()
-    except:
+    except Exception:
         print("Could not find a match")
         return None
     if "IdentifierList" not in data:
@@ -149,7 +147,7 @@ def gen_coords(s, name=None, template=None):
         try:
             m = AllChem.ConstrainedEmbed(m, template)
             status = 0
-        except Exception as e:
+        except Exception:
             print("Trying ignore template")
     if status == -1:
         print("Failed to match template, embedding alone")
@@ -163,11 +161,11 @@ def gen_coords(s, name=None, template=None):
         status = AllChem.EmbedMolecule(m, params)
     try:
         AllChem.UFFOptimizeMolecule(m)
-    except:
+    except Exception:
         pass
     try:
         AllChem.MMFFOptimizeMolecule(m)
-    except:
+    except Exception:
         pass
 
     if name is None:
@@ -191,7 +189,7 @@ def render(
         with open(script.name, "w") as f:
             f.writelines(vmd_script(width, id, script_name, color=color))
         if len(args) > 0:
-            arg_str = f'-args {" ".join(args)}'
+            arg_str = f"-args {' '.join(args)}"
         else:
             arg_str = ""
         subprocess.run(

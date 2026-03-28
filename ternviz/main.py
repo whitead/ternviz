@@ -1,19 +1,18 @@
-from pydoc import cli
-import click
-from rdkit import Chem
 import os
+
+import click
+
 from .lib import (
-    bmp2png,
-    gen_coords,
-    movie,
-    render,
-    check_smiles,
-    get_name,
-    multiplex,
-    get_pdb,
     align,
-    sdf2pdb,
     bmp2png,
+    check_smiles,
+    gen_coords,
+    get_name,
+    get_pdb,
+    movie,
+    multiplex,
+    render,
+    sdf2pdb,
 )
 
 
@@ -27,18 +26,17 @@ from .lib import (
 def main(smiles, names, vmd, ffmpeg, low_quality, color):
     if len(smiles) == 0:
         return
-    if type(smiles) == str:
+    if isinstance(smiles, str):
         smiles = [smiles]
     if names is None:
         names = [get_name(s) for s in smiles]
-    if type(names) == str:
+    if isinstance(names, str):
         names = names.split(",")
     assert len(names) == len(smiles)
     width = 800 // len(smiles)
     movies = []
     for i, (n, s) in enumerate(zip(names, smiles)):
         print("Processing SMILES", i + 1, "of", len(smiles))
-        status = ""
         sm = check_smiles(s)
         if sm:
             raise ValueError(sm)

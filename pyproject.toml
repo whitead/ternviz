@@ -48,10 +48,20 @@ ternviz-sdf = "ternviz.main:sdf_main"
 dev = [
   "pre-commit",
   "pytest",
+  "ruff",
 ]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py310"
+
+[tool.ruff.lint]
+extend-select = ["I"]
+
+[tool.ruff.lint.per-file-ignores]
+"*.ipynb" = ["E402"]
 
 [tool.setuptools.dynamic]
 version = { attr = "ternviz.version.__version__" }
