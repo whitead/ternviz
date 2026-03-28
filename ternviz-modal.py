@@ -36,6 +36,9 @@ VMD_ARCHIVE_PATH = _resolve_vmd_archive() if modal.is_local() else None
 GPU_RENDERER = "TachyonLOptiXInternal"
 GPU_RENDER_FORMAT = "PPM"
 GPU_FRAME_EXT = "ppm"
+MAX_RENDER_CONTAINERS = 4
+TARGET_FRAMES_PER_RENDER_JOB = 30
+MOVIE_RENDER_CPU = 16
 
 app = modal.App("ternviz-pdb")
 volume = modal.Volume.from_name("ternviz-scratch", create_if_missing=True)
@@ -114,6 +117,23 @@ def align_pdbs_to_reference(pdb_files: List[bytes], reference_pdb: bytes) -> Lis
     return aligned_pdb_strings
 
 
+def expand_render_files(
+    render_files: List[bytes],
+    target_total_frames: int,
+    max_frames_per_job: int = TARGET_FRAMES_PER_RENDER_JOB,
+    max_render_jobs: int = MAX_RENDER_CONTAINERS,
+) -> List[bytes]:
+    desired_render_jobs = max(
+        len(render_files),
+        min(max_render_jobs, math.ceil(target_total_frames / max_frames_per_job)),
+    )
+    if len(render_files) >= desired_render_jobs:
+        return render_files
+    return [
+        render_files[i % len(render_files)] for i in range(desired_render_jobs)
+    ]
+
+
 async def extract_gz_content(file_content: bytes) -> bytes:
     with gzip.open(io.BytesIO(file_content), "rb") as gz:
         return gz.read()
@@ -190,13 +210,8 @@ def build_web_app():
 
         coloring = "Structure" if len(render_files) == 1 else "Chain"
         target_total_frames = max(target_total_frames, len(render_files))
-        max_frames_per_job = 30
         job_id = str(uuid.uuid4()).split("-")[0]
-
-        while target_total_frames // len(render_files) > max_frames_per_job:
-            render_files = [
-                render_files[i // 2] for i in range(len(render_files) * 2)
-            ]
+        render_files = expand_render_files(render_files, target_total_frames)
 
         n_frames = len(render_files) * math.ceil(
             target_total_frames / len(render_files)
@@ -232,7 +247,13 @@ def build_web_app():
     return web_app
 
 
-@app.function(cpu=4, gpu="l4", image=image, volumes=volumes, max_containers=4)
+@app.function(
+    cpu=4,
+    gpu="l4",
+    image=image,
+    volumes=volumes,
+    max_containers=MAX_RENDER_CONTAINERS,
+)
 def pdb_render(
     pdb_id: str,
     pdb_file: bytes,
@@ -263,7 +284,12 @@ def pdb_render(
     return True
 
 
-@app.function(cpu=8, image=image, volumes=volumes, timeout=1200)
+@app.function(
+    cpu=MOVIE_RENDER_CPU,
+    image=image,
+    volumes=volumes,
+    timeout=1200,
+)
 def movie_render(name: str, pdb_id: str):
     volume.reload()
     movie_path = ternviz.movie(
