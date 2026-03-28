@@ -5,13 +5,21 @@ Convert SMILES to a 3D rotating video. Check-out the Twitter bot [@ternviz](http
 
 ## Install
 
-You need to install both [VMD](https://www.ks.uiuc.edu/Research/vmd/) and ffmpeg. After that:
+You need to install both [VMD](https://www.ks.uiuc.edu/Research/vmd/) and `ffmpeg` as system dependencies. After that, sync the project environment with `uv`:
 
-```py
-pip install ternviz
+```sh
+uv sync
+```
+
+To include the optional Twitter bot dependencies too:
+
+```sh
+uv sync --extra bot
 ```
 
 ## Usage
+
+From a repo checkout, run commands through `uv run`:
 
 It can be used to render stills, rotating videos, comparisons of molecules, and compilation videos of multiple proteins.
 
@@ -20,19 +28,19 @@ It can be used to render stills, rotating videos, comparisons of molecules, and 
 To render a molecule:
 
 ```sh
-ternviz CCCO
+uv run ternviz CCCO
 ```
 
 You may need to specify the path to VMD or ffmpeg:
 
 ```sh
-ternviz CO --vmd /path/to/vmd/executable
+uv run ternviz CO --vmd /path/to/vmd/executable
 ```
 
 You can modify a few things too:
 
 ```sh
-ternviz CCCO --name "my molecule" --color white
+uv run ternviz CCCO --name "my molecule" --color white
 ```
 
 try `--low-quality` to render quickly.
@@ -41,25 +49,25 @@ try `--low-quality` to render quickly.
 
 This will do a still frame
 ```sh
-ternviz-pdb 1A1L
+uv run ternviz-pdb 1A1L
 ```
 
 To do a rotating movie, specify number of frames (at 60 fps)
 
 ```sh
-ternviz-pdb 1A1L --frames 60
+uv run ternviz-pdb 1A1L --frames 60
 ```
 
 You can pass in multiple PDBs
 
 ```sh
-ternviz-pdb my.pdb other.pdb
+uv run ternviz-pdb my.pdb other.pdb
 ```
 
 You can specify how the structure is colored and other details
 
 ```sh
-ternviz-pdb 1A1L --frames 60 --color white --scolor Chain
+uv run ternviz-pdb 1A1L --frames 60 --color white --scolor Chain
 ```
 
 ### Aligning PDBs
@@ -67,13 +75,13 @@ ternviz-pdb 1A1L --frames 60 --color white --scolor Chain
 You can align structures before rendering
 
 ```sh
-ternviz-align ref.pdb *.pdb
+uv run ternviz-align ref.pdb *.pdb
 ```
 
 by default it aligns on the protein. You can also change selection string, using [MDAnalysis Selection String Syntax](https://docs.mdanalysis.org/stable/documentation_pages/selections.html)
 
 ```sh
-ternviz-align ref.pdb --sel "chainid B" *.pdb
+uv run ternviz-align ref.pdb --sel "chainid B" *.pdb
 ```
 ## Example Render
 

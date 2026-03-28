@@ -1,4 +1,0 @@
-ffmpeg
-vmd
-open-fonts
-pre-commit

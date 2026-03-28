@@ -4,6 +4,7 @@ from rdkit.Chem import AllChem
 import tempfile
 import os
 import sys
+from importlib.resources import files
 from io import StringIO, BytesIO
 import requests
 import subprocess
@@ -51,10 +52,7 @@ def get_name(s):
 
 
 def vmd_script(width, id, script_name="render.vmd", color="black"):
-    from importlib_resources import files
-    import ternviz.vmd
-
-    fp = files(ternviz.vmd).joinpath(script_name)
+    fp = files("ternviz.vmd").joinpath(script_name)
     result = []
     with fp.open("r") as f:
         for line in f.readlines():

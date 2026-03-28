@@ -1,0 +1,66 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ternviz"
+dynamic = ["version"]
+description = "Render SMILES into 3D video"
+readme = "README.md"
+requires-python = ">=3.10,<3.12"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [
+  { name = "Andrew White", email = "andrew.white@rochester.edu" },
+]
+dependencies = [
+  "click",
+  "MDAnalysis",
+  "numpy<2",
+  "pillow",
+  "rdkit-pypi",
+  "requests",
+]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Operating System :: OS Independent",
+  "Topic :: Scientific/Engineering :: Chemistry",
+]
+
+[project.urls]
+Homepage = "https://github.com/whitead/ternviz"
+Repository = "https://github.com/whitead/ternviz"
+
+[project.optional-dependencies]
+bot = [
+  "python-dotenv",
+  "tweepy",
+]
+
+[project.scripts]
+ternviz = "ternviz.main:main"
+ternviz-align = "ternviz.main:align_cmd"
+ternviz-bot = "ternviz.bot:bot"
+ternviz-pdb = "ternviz.main:pdb_main"
+ternviz-sdf = "ternviz.main:sdf_main"
+
+[dependency-groups]
+dev = [
+  "pre-commit",
+  "pytest",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.setuptools.dynamic]
+version = { attr = "ternviz.version.__version__" }
+
+[tool.setuptools.packages.find]
+include = ["ternviz*"]
+
+[tool.setuptools.package-data]
+"ternviz.vmd" = ["*.vmd"]
+
+[tool.uv]
+default-groups = ["dev"]
